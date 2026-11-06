@@ -1,0 +1,13 @@
+Myco {{ .Chart.AppVersion }} is deployed as {{ include "myco.fullname" . }} in namespace {{ .Release.Namespace }}.
+{{- if .Values.ingress.enabled }}
+
+MCP endpoint:  https://{{ .Values.ingress.host }}/mcp
+Health:        https://{{ .Values.ingress.host }}/health
+{{- else }}
+
+kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "myco.fullname" . }} 8080:{{ .Values.service.port }}
+MCP endpoint:  http://127.0.0.1:8080/mcp
+{{- end }}
+
+Agents authenticate with "Authorization: Bearer <MYCO_AGENT__<NAME>__KEY>".
+Audit records are JSON lines on stdout:  kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "myco.fullname" . }} | grep '"audit"'

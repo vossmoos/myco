@@ -2,11 +2,11 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "pact.fullname" . }}-config
+  name: {{ include "myco.fullname" . }}-config
   labels:
-    {{- include "pact.labels" . | nindent 4 }}
+    {{- include "myco.labels" . | nindent 4 }}
 data:
   {{- range $path, $content := .Values.config.files }}
-  {{ include "pact.configKey" $path }}: {{ $content | quote }}
+  {{ include "myco.configKey" $path }}: {{ $content | quote }}
   {{- end }}
 {{- end }}

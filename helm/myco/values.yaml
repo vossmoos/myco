@@ -1,16 +1,16 @@
-# Default values for Pact. Secrets never belong in this file: deploy.sh creates the
+# Default values for Myco. Secrets never belong in this file: deploy.sh creates the
 # Secret from .env and passes its name as existingSecret.
 
 nameOverride: ""
 fullnameOverride: ""
 
 # Stateful MCP sessions live in memory. Keep 1 replica, or set
-# env.PACT_STATELESS_HTTP: "true" before scaling out (clients then refresh tool
+# env.MYCO_STATELESS_HTTP: "true" before scaling out (clients then refresh tool
 # lists on reconnect instead of receiving tools/list_changed).
 replicaCount: 1
 
 image:
-  repository: rg.fr-par.scw.cloud/pact/pact
+  repository: rg.fr-par.scw.cloud/myco/myco
   tag: "" # defaults to the chart appVersion; deploy.sh sets the git SHA
   pullPolicy: IfNotPresent
 imagePullSecrets: []
@@ -24,7 +24,7 @@ containerPort: 8080
 ingress:
   enabled: false
   className: nginx
-  host: "" # e.g. pact.example.com
+  host: "" # e.g. myco.example.com
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     # MCP streamable HTTP uses long-lived SSE responses.
@@ -33,12 +33,12 @@ ingress:
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
   tls: true # secret name: <host with dots replaced>-tls
 
-# Non-secret settings, rendered as plain env vars (PACT_LOG_LEVEL, PACT_RELOAD_SECONDS, ...).
+# Non-secret settings, rendered as plain env vars (MYCO_LOG_LEVEL, MYCO_RELOAD_SECONDS, ...).
 env:
-  PACT_LOG_LEVEL: INFO
-  PACT_RELOAD_SECONDS: "10"
+  MYCO_LOG_LEVEL: INFO
+  MYCO_RELOAD_SECONDS: "10"
 
-# Secret holding PACT_SOURCE__*, PACT_AGENT__*__KEY and PACT_OIDC__* variables.
+# Secret holding MYCO_SOURCE__*, MYCO_AGENT__*__KEY and MYCO_OIDC__* variables.
 existingSecret: ""
 # Only used when existingSecret is empty: the chart renders these into a Secret.
 secrets: {}
@@ -56,7 +56,7 @@ config:
 
 gitSync:
   image: registry.k8s.io/git-sync/git-sync:v4.4.0
-  repo: "" # https://github.com/acme/pact-config.git
+  repo: "" # https://github.com/acme/myco-config.git
   ref: main
   path: "" # folder inside the repo that holds agents/, users.yaml, domains.yaml
   period: 60s

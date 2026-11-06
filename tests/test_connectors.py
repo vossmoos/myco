@@ -7,10 +7,10 @@ import httpx
 import pytest
 import respx
 
-from pact_mcp.http import UpstreamError
-from pact_mcp.packs.zendesk import ZendeskConnector
-from pact_mcp.packs.jira import JiraConnector, adf_to_text, text_to_adf
-from pact_mcp.packs.wrike import WrikeConnector
+from myco_mcp.http import UpstreamError
+from myco_mcp.packs.jira import JiraConnector, adf_to_text, text_to_adf
+from myco_mcp.packs.wrike import WrikeConnector
+from myco_mcp.packs.zendesk import ZendeskConnector
 
 ZD = "https://acme.zendesk.com/api/v2"
 JIRA = "https://acme.atlassian.net/rest/api/3"
@@ -139,7 +139,7 @@ async def test_wrike_create_task_sends_form(wrike):
 
 @respx.mock
 async def test_retry_once_on_rate_limit(wrike, monkeypatch):
-    monkeypatch.setattr("pact_mcp.http.asyncio.sleep", _no_sleep)
+    monkeypatch.setattr("myco_mcp.http.asyncio.sleep", _no_sleep)
     respx.get(f"{WRIKE}/folders").mock(
         side_effect=[httpx.Response(429, headers={"Retry-After": "1"}), httpx.Response(200, json={"data": []})]
     )

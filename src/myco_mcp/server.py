@@ -1,6 +1,6 @@
-"""The Pact MCP endpoint: FastMCP + four checks on every call.
+"""The Myco MCP endpoint: FastMCP + four checks on every call.
 
-1. Identify the agent (Pact key) and its user (forwarded SSO token, else the agent's service
+1. Identify the agent (Myco key) and its user (forwarded SSO token, else the agent's service
    user, else ``anonymous``).
 2. Map the tool to its action label.
 3. Check roles, taints and denies.
@@ -26,19 +26,19 @@ from mcp.types import ToolAnnotations
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from pact_mcp import __version__
-from pact_mcp.audit import AuditLog
-from pact_mcp.catalog import Catalog, ToolSpec
-from pact_mcp.config import ConfigError, Policy, fingerprint, load_policy
-from pact_mcp.http import UpstreamError
-from pact_mcp.identity import AgentKeyVerifier, NoUserTokens, UserTokenError, UserTokenValidator
-from pact_mcp.policy import Caller, ScopeError, build_caller, decide, describe_limits, shape_reply
-from pact_mcp.settings import Settings, agent_env_name
+from myco_mcp import __version__
+from myco_mcp.audit import AuditLog
+from myco_mcp.catalog import Catalog, ToolSpec
+from myco_mcp.config import ConfigError, Policy, fingerprint, load_policy
+from myco_mcp.http import UpstreamError
+from myco_mcp.identity import AgentKeyVerifier, NoUserTokens, UserTokenError, UserTokenValidator
+from myco_mcp.policy import Caller, ScopeError, build_caller, decide, describe_limits, shape_reply
+from myco_mcp.settings import Settings, agent_env_name
 
-log = logging.getLogger("pact")
+log = logging.getLogger("myco")
 
 INSTRUCTIONS = (
-    "Pact exposes a curated, permission-checked set of SaaS tools. Every tool name starts "
+    "Myco exposes a curated, permission-checked set of SaaS tools. Every tool name starts "
     "with its source (zendesk_, jira_, ...). Calls outside your roles are refused."
 )
 
@@ -78,11 +78,11 @@ class PolicyStore:
         for agent in policy.agents.values():
             if agent_env_name(agent.name) not in keys:
                 log.warning(
-                    "agent %s has no PACT_AGENT__%s__KEY and cannot connect", agent.name, agent_env_name(agent.name)
+                    "agent %s has no MYCO_AGENT__%s__KEY and cannot connect", agent.name, agent_env_name(agent.name)
                 )
         for key_name in keys:
             if policy.agent_for_env_name(key_name) is None:
-                log.warning("PACT_AGENT__%s__KEY has no agents/*.yaml file; it sees no tools", key_name)
+                log.warning("MYCO_AGENT__%s__KEY has no agents/*.yaml file; it sees no tools", key_name)
         log.info("config version %s: %d agents, %d user entries", policy.version, len(policy.agents), len(policy.users))
 
 
@@ -99,7 +99,7 @@ class Gate:
     async def caller(self, policy: Policy | None = None) -> Caller:
         token = get_access_token()
         if token is None:
-            raise ToolError("missing agent key: send Authorization: Bearer <PACT agent key>")
+            raise ToolError("missing agent key: send Authorization: Bearer <MYCO agent key>")
         header = self.settings.user_token_header
         raw = get_http_headers(include={header}).get(header, "").strip()
         if raw.lower().startswith("bearer "):
@@ -127,7 +127,7 @@ class Gate:
         }
         if not decision.allowed:
             self.audit.record("tool.call", decision="deny", reason=decision.reason, **record)
-            raise ToolError(f"Pact denied {spec.name} ({spec.label}): {decision.reason}")
+            raise ToolError(f"Myco denied {spec.name} ({spec.label}): {decision.reason}")
         started = time.monotonic()
         try:
             reply = shape_reply(caller, spec, await spec.method(**arguments), policy.domains)
@@ -150,7 +150,7 @@ class Gate:
         return reply
 
 
-class PactMiddleware(Middleware):
+class MycoMiddleware(Middleware):
     """Per-agent ``tools/list`` and session tracking for ``tools/list_changed``."""
 
     def __init__(self, gate: Gate) -> None:
@@ -195,9 +195,9 @@ def create_server(settings: Settings | None = None, *, audit: AuditLog | None = 
     catalog = Catalog.build(settings)
     store = PolicyStore(settings, catalog, audit)
     gate = Gate(settings, catalog, store, audit)
-    middleware = PactMiddleware(gate)
+    middleware = MycoMiddleware(gate)
     if not settings.agent_keys:
-        log.warning("no PACT_AGENT__<NAME>__KEY variables set; nobody can connect")
+        log.warning("no MYCO_AGENT__<NAME>__KEY variables set; nobody can connect")
 
     @lifespan
     async def watch_config(server: FastMCP) -> AsyncIterator[dict[str, Any]]:
@@ -209,7 +209,7 @@ def create_server(settings: Settings | None = None, *, audit: AuditLog | None = 
             await catalog.aclose()
 
     mcp = FastMCP(
-        name="pact",
+        name="myco",
         version=__version__,
         instructions=INSTRUCTIONS,
         auth=AgentKeyVerifier(settings.agent_keys),
@@ -260,7 +260,7 @@ def _gated(gate: Gate, spec: ToolSpec) -> Callable[..., Any]:
     return gated
 
 
-async def _watch(store: PolicyStore, middleware: PactMiddleware, seconds: float) -> None:
+async def _watch(store: PolicyStore, middleware: MycoMiddleware, seconds: float) -> None:
     if seconds <= 0:
         return
     while True:

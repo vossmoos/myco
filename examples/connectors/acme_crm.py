@@ -1,22 +1,22 @@
-"""Example connector: a tiny CRM with deals. Load it with PACT_PLUGINS=acme_crm.
+"""Example connector: a tiny CRM with deals. Load it with MYCO_PLUGINS=acme_crm.
 
-PACT_SOURCE__CRM__TYPE=acme_crm
-PACT_SOURCE__CRM__BASE_URL=https://crm.example.com/api
-PACT_SOURCE__CRM__API_KEY=...
+MYCO_SOURCE__CRM__TYPE=acme_crm
+MYCO_SOURCE__CRM__BASE_URL=https://crm.example.com/api
+MYCO_SOURCE__CRM__API_KEY=...
 """
 
 from __future__ import annotations
 
 from typing import Any, Literal
 
-from pact_mcp.connector import Connector, Setting, tool
-from pact_mcp.http import HttpClient
+from myco_mcp.connector import Connector, Setting, tool
+from myco_mcp.http import HttpClient
 
 Stage = Literal["lead", "qualified", "proposal", "won", "lost"]
 
 
 class AcmeCrm(Connector):
-    type = "acme_crm"  # the value of PACT_SOURCE__<NAME>__TYPE
+    type = "acme_crm"  # the value of MYCO_SOURCE__<NAME>__TYPE
     settings = {
         "base_url": Setting(help="CRM API root"),
         "api_key": Setting(secret=True),

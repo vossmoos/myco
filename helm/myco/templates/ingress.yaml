@@ -3,9 +3,9 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "pact.fullname" . }}
+  name: {{ include "myco.fullname" . }}
   labels:
-    {{- include "pact.labels" . | nindent 4 }}
+    {{- include "myco.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -28,14 +28,14 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "pact.fullname" . }}
+                name: {{ include "myco.fullname" . }}
                 port:
                   name: http
           - path: /health
             pathType: Exact
             backend:
               service:
-                name: {{ include "pact.fullname" . }}
+                name: {{ include "myco.fullname" . }}
                 port:
                   name: http
 {{- end }}

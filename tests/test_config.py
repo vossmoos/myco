@@ -2,11 +2,11 @@ import io
 
 import pytest
 
-from pact_mcp.audit import AuditLog
-from pact_mcp.catalog import Catalog
-from pact_mcp.config import ConfigError, load_policy
-from pact_mcp.server import PolicyStore
-from pact_mcp.settings import Settings
+from myco_mcp.audit import AuditLog
+from myco_mcp.catalog import Catalog
+from myco_mcp.config import ConfigError, load_policy
+from myco_mcp.server import PolicyStore
+from myco_mcp.settings import Settings
 
 
 @pytest.fixture
@@ -81,7 +81,7 @@ def test_reload_keeps_last_good_config(env, config_dir, catalog):
 
 
 def test_fingerprint_ignores_dot_paths(config_dir):
-    from pact_mcp.config import config_files
+    from myco_mcp.config import config_files
 
     hidden = config_dir / "..2026_10_11_00_00_00" / "agents"
     hidden.mkdir(parents=True)

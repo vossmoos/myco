@@ -1,6 +1,6 @@
 """Jira Cloud (REST API v3) connector.
 
-Settings (``PACT_SOURCE__<NAME>__<SETTING>``):
+Settings (``MYCO_SOURCE__<NAME>__<SETTING>``):
 
     SITE       acme.atlassian.net
     EMAIL      Atlassian account e-mail used with the API token
@@ -16,8 +16,8 @@ from typing import Annotated, Any
 
 from pydantic import Field
 
-from pact_mcp.connector import Connector, Setting, tool
-from pact_mcp.http import HttpClient
+from myco_mcp.connector import Connector, Setting, tool
+from myco_mcp.http import HttpClient
 
 ISSUE_KEY_RE = re.compile(r"^([A-Z][A-Z0-9_]+)-\d+$")
 PROJECT_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]+$")

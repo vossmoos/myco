@@ -1,11 +1,11 @@
 apiVersion: v2
-name: pact
+name: myco
 description: >
-  Pact — one MCP endpoint that gives each AI agent a curated, permissioned set of
+  Myco — one MCP endpoint that gives each AI agent a curated, permissioned set of
   SaaS tools. Sources and agent keys come from a Secret; permissions from a config
   folder (ConfigMap, git-sync sidecar, or the image's example config).
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
-home: https://github.com/vossmoos/pact
+home: https://github.com/vossmoos/myco
 keywords: [mcp, ai-agents, iam, permissions]

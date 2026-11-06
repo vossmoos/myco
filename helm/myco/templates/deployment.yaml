@@ -6,27 +6,27 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "pact.fullname" . }}
+  name: {{ include "myco.fullname" . }}
   labels:
-    {{- include "pact.labels" . | nindent 4 }}
+    {{- include "myco.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "pact.selectorLabels" . | nindent 6 }}
+      {{- include "myco.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "pact.selectorLabels" . | nindent 8 }}
+        {{- include "myco.selectorLabels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
-        pact.dev/config-source: {{ $source | quote }}
+        myco.dev/config-source: {{ $source | quote }}
         {{- if and (not .Values.existingSecret) .Values.secrets }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- end }}
-        {{- /* No config checksum on purpose: Pact hot-reloads the folder and sends tools/list_changed. */}}
+        {{- /* No config checksum on purpose: Myco hot-reloads the folder and sends tools/list_changed. */}}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -40,11 +40,11 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{- if eq $source "gitSync" }}
       initContainers:
-        # Fetch the config once so Pact starts with a valid folder.
+        # Fetch the config once so Myco starts with a valid folder.
         - name: git-sync-init
           image: {{ .Values.gitSync.image }}
           env:
-            {{- include "pact.gitSyncEnv" . | nindent 12 }}
+            {{- include "myco.gitSyncEnv" . | nindent 12 }}
             - name: GITSYNC_ONE_TIME
               value: "true"
           {{- with .Values.gitSync.existingSecret }}
@@ -63,19 +63,19 @@ spec:
               mountPath: /tmp
       {{- end }}
       containers:
-        - name: pact
+        - name: myco
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
               containerPort: {{ .Values.containerPort }}
           env:
-            - name: PACT_HOST
+            - name: MYCO_HOST
               value: "0.0.0.0"
-            - name: PACT_PORT
+            - name: MYCO_PORT
               value: {{ .Values.containerPort | quote }}
-            - name: PACT_CONFIG_DIR
-              value: {{ include "pact.configDir" . | quote }}
+            - name: MYCO_CONFIG_DIR
+              value: {{ include "myco.configDir" . | quote }}
             {{- range $key, $value := .Values.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
@@ -83,7 +83,7 @@ spec:
           {{- if or .Values.existingSecret .Values.secrets }}
           envFrom:
             - secretRef:
-                name: {{ include "pact.secretName" . }}
+                name: {{ include "myco.secretName" . }}
           {{- end }}
           livenessProbe:
             httpGet: { path: /health, port: http }
@@ -109,7 +109,7 @@ spec:
         - name: git-sync
           image: {{ .Values.gitSync.image }}
           env:
-            {{- include "pact.gitSyncEnv" . | nindent 12 }}
+            {{- include "myco.gitSyncEnv" . | nindent 12 }}
           {{- with .Values.gitSync.existingSecret }}
           envFrom:
             - secretRef:
@@ -131,10 +131,10 @@ spec:
         {{- if $configMap }}
         - name: config
           configMap:
-            name: {{ include "pact.fullname" . }}-config
+            name: {{ include "myco.fullname" . }}-config
             items:
               {{- range $path, $_ := .Values.config.files }}
-              - key: {{ include "pact.configKey" $path }}
+              - key: {{ include "myco.configKey" $path }}
                 path: {{ $path }}
               {{- end }}
         {{- else if eq $source "gitSync" }}

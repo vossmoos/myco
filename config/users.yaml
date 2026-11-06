@@ -2,8 +2,8 @@
 # Keep this file owned by security (CODEOWNERS): it decides who may do what.
 #
 # Who the "user" of a call is:
-#   1. A person: the agent forwards their SSO token in X-Pact-User-Token
-#      (needs PACT_OIDC__ISSUER and PACT_OIDC__AUDIENCE). Pact matches the token's
+#   1. A person: the agent forwards their SSO token in X-Myco-User-Token
+#      (needs MYCO_OIDC__ISSUER and MYCO_OIDC__AUDIENCE). Myco matches the token's
 #      claims against `match`; every matching entry adds its roles. A signed-in person
 #      who matches no entry gets no roles.
 #   2. A service user: an agent calling without a token runs as the entry that lists

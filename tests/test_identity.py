@@ -4,11 +4,11 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from pact_mcp.identity import AgentKeyVerifier, NoUserTokens, UserTokenError, UserTokenValidator
-from pact_mcp.settings import OidcSettings
+from myco_mcp.identity import AgentKeyVerifier, NoUserTokens, UserTokenError, UserTokenValidator
+from myco_mcp.settings import OidcSettings
 
 ISSUER = "https://idp.example.com"
-AUDIENCE = "pact"
+AUDIENCE = "myco"
 
 
 class StaticJwks:

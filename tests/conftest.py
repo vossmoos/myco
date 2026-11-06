@@ -14,15 +14,15 @@ READER_KEY = "test-reader-key-0123456789"
 ORPHAN_KEY = "test-orphan-key-0123456789"
 
 BASE_ENV = {
-    "PACT_SOURCE__ZENDESK__DOMAIN": "acme.zendesk.com",
-    "PACT_SOURCE__ZENDESK__API_KEY": "fd-key",
-    "PACT_SOURCE__JIRA__SITE": "acme.atlassian.net",
-    "PACT_SOURCE__JIRA__EMAIL": "bot@acme.test",
-    "PACT_SOURCE__JIRA__API_TOKEN": "jira-token",
-    "PACT_SOURCE__JIRA__PROJECTS": "OPS",
-    "PACT_SOURCE__WRIKE__TOKEN": "wrike-token",
-    "PACT_AGENT__DEFAULT__KEY": AGENT_KEY,
-    "PACT_RELOAD_SECONDS": "0",
+    "MYCO_SOURCE__ZENDESK__DOMAIN": "acme.zendesk.com",
+    "MYCO_SOURCE__ZENDESK__API_KEY": "fd-key",
+    "MYCO_SOURCE__JIRA__SITE": "acme.atlassian.net",
+    "MYCO_SOURCE__JIRA__EMAIL": "bot@acme.test",
+    "MYCO_SOURCE__JIRA__API_TOKEN": "jira-token",
+    "MYCO_SOURCE__JIRA__PROJECTS": "OPS",
+    "MYCO_SOURCE__WRIKE__TOKEN": "wrike-token",
+    "MYCO_AGENT__DEFAULT__KEY": AGENT_KEY,
+    "MYCO_RELOAD_SECONDS": "0",
 }
 
 
@@ -36,4 +36,4 @@ def config_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def env(config_dir: Path) -> dict[str, str]:
-    return {**BASE_ENV, "PACT_CONFIG_DIR": str(config_dir)}
+    return {**BASE_ENV, "MYCO_CONFIG_DIR": str(config_dir)}

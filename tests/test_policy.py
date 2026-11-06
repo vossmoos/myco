@@ -1,9 +1,9 @@
 import pytest
 
-from pact_mcp.catalog import Catalog
-from pact_mcp.config import load_policy
-from pact_mcp.policy import REDACTED, ScopeError, build_caller, decide, describe_limits, shape_reply
-from pact_mcp.settings import Settings
+from myco_mcp.catalog import Catalog
+from myco_mcp.config import load_policy
+from myco_mcp.policy import REDACTED, ScopeError, build_caller, decide, describe_limits, shape_reply
+from myco_mcp.settings import Settings
 
 
 @pytest.fixture

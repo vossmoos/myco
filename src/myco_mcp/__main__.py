@@ -1,4 +1,4 @@
-"""Container entrypoint: ``python -m pact_mcp``. Configured only by environment variables."""
+"""Container entrypoint: ``python -m myco_mcp``. Configured only by environment variables."""
 
 from __future__ import annotations
 
@@ -7,10 +7,10 @@ import sys
 
 import uvicorn
 
-from pact_mcp.config import ConfigError
-from pact_mcp.connector import PackError
-from pact_mcp.server import create_app
-from pact_mcp.settings import Settings, SettingsError
+from myco_mcp.config import ConfigError
+from myco_mcp.connector import PackError
+from myco_mcp.server import create_app
+from myco_mcp.settings import Settings, SettingsError
 
 
 def main() -> None:
@@ -25,7 +25,7 @@ def main() -> None:
         logging.getLogger("httpx").setLevel(logging.WARNING)
         app = create_app(settings)
     except (SettingsError, PackError, ConfigError) as exc:
-        print(f"pact: {exc}", file=sys.stderr)
+        print(f"myco: {exc}", file=sys.stderr)
         sys.exit(2)
     uvicorn.run(
         app,

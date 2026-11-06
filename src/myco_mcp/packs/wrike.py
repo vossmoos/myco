@@ -1,6 +1,6 @@
 """Wrike (API v4) connector.
 
-Settings (``PACT_SOURCE__<NAME>__<SETTING>``):
+Settings (``MYCO_SOURCE__<NAME>__<SETTING>``):
 
     TOKEN     Wrike permanent access token
     BASE_URL  default https://www.wrike.com/api/v4 (EU accounts: https://app-eu.wrike.com/api/v4)
@@ -19,8 +19,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import Field
 
-from pact_mcp.connector import Connector, Setting, tool
-from pact_mcp.http import HttpClient
+from myco_mcp.connector import Connector, Setting, tool
+from myco_mcp.http import HttpClient
 
 WrikeId = Annotated[str, Field(pattern=r"^[A-Z0-9]{8,32}$", description="Wrike API id, e.g. MAAAAAELaG4z")]
 Status = Literal["Active", "Completed", "Deferred", "Cancelled"]

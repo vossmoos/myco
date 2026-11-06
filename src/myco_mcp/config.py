@@ -1,6 +1,6 @@
 """Permissions as YAML in Git: the config folder.
 
-    pact-config/
+    myco-config/
       agents/<agent>.yaml   one file per agent (roles, deny, tolerations, scope, redact)
       users.yaml            SSO claim matching, service users and the built-in ``anonymous`` user
       domains.yaml          optional groups of sources, e.g. support: [zendesk, zendesk]
@@ -21,8 +21,8 @@ from typing import Any
 
 import yaml
 
-from pact_mcp.labels import NAME_RE, LabelError, LabelPattern
-from pact_mcp.settings import agent_env_name
+from myco_mcp.labels import NAME_RE, LabelError, LabelPattern
+from myco_mcp.settings import agent_env_name
 
 AGENT_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 PLACEHOLDER_RE = re.compile(r"\{([^{}]*)\}")
@@ -144,7 +144,7 @@ def load_policy(
         agents[agent.name] = agent
     env_names = [agent_env_name(name) for name in agents]
     if len(set(env_names)) != len(env_names):
-        raise ConfigError("two agent names map to the same PACT_AGENT__<NAME>__KEY variable")
+        raise ConfigError("two agent names map to the same MYCO_AGENT__<NAME>__KEY variable")
 
     users, anonymous, service_users = _load_users(config_dir / "users.yaml", resolver, agents)
     return Policy(

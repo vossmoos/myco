@@ -1,9 +1,9 @@
 """Keep the README's examples true."""
 
-from pact_mcp.catalog import Catalog
-from pact_mcp.config import load_policy
-from pact_mcp.policy import build_caller, decide
-from pact_mcp.settings import Settings
+from myco_mcp.catalog import Catalog
+from myco_mcp.config import load_policy
+from myco_mcp.policy import build_caller, decide
+from myco_mcp.settings import Settings
 
 
 def visible_tools(env, config_dir, agent_key_name):

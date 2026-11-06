@@ -1,4 +1,4 @@
-# Example of a narrowly scoped agent. It has no PACT_AGENT__SUPPORT_BOT__KEY in the
+# Example of a narrowly scoped agent. It has no MYCO_AGENT__SUPPORT_BOT__KEY in the
 # example .env, so it cannot connect until you add one. It also has no service user, so
 # it only works for signed-in people (forwarded SSO token) until users.yaml gives it one.
 agent: support-bot

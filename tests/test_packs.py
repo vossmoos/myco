@@ -1,8 +1,8 @@
 import pytest
 
-from pact_mcp.catalog import Catalog, load_connector_modules
-from pact_mcp.connector import Connector, Pack, PackError, tool
-from pact_mcp.settings import Settings
+from myco_mcp.catalog import Catalog, load_connector_modules
+from myco_mcp.connector import Connector, Pack, PackError, tool
+from myco_mcp.settings import Settings
 
 
 def test_example_packs_match_their_connectors():
@@ -24,9 +24,9 @@ def test_catalog_prefixes_tools_labels_and_roles(env):
 def test_second_source_of_same_type_is_independent(env):
     env = {
         **env,
-        "PACT_SOURCE__SUPPORT_EU__TYPE": "zendesk",
-        "PACT_SOURCE__SUPPORT_EU__DOMAIN": "eu.zendesk.com",
-        "PACT_SOURCE__SUPPORT_EU__API_KEY": "k",
+        "MYCO_SOURCE__SUPPORT_EU__TYPE": "zendesk",
+        "MYCO_SOURCE__SUPPORT_EU__DOMAIN": "eu.zendesk.com",
+        "MYCO_SOURCE__SUPPORT_EU__API_KEY": "k",
     }
     catalog = Catalog.build(Settings.from_env(env))
     assert str(catalog.tools["support_eu_get_ticket"].label) == "support_eu:ticket:read"
@@ -34,14 +34,14 @@ def test_second_source_of_same_type_is_independent(env):
 
 
 def test_missing_and_unknown_settings_fail_fast(env):
-    broken = {k: v for k, v in env.items() if k != "PACT_SOURCE__WRIKE__TOKEN"}
-    broken["PACT_SOURCE__WRIKE__BASE_URL"] = "https://app-eu.wrike.com/api/v4"
-    with pytest.raises(PackError, match="PACT_SOURCE__WRIKE__TOKEN is required"):
+    broken = {k: v for k, v in env.items() if k != "MYCO_SOURCE__WRIKE__TOKEN"}
+    broken["MYCO_SOURCE__WRIKE__BASE_URL"] = "https://app-eu.wrike.com/api/v4"
+    with pytest.raises(PackError, match="MYCO_SOURCE__WRIKE__TOKEN is required"):
         Catalog.build(Settings.from_env(broken))
     with pytest.raises(PackError, match="unknown settings"):
-        Catalog.build(Settings.from_env({**env, "PACT_SOURCE__JIRA__SPACE": "x"}))
+        Catalog.build(Settings.from_env({**env, "MYCO_SOURCE__JIRA__SPACE": "x"}))
     with pytest.raises(PackError, match="unknown TYPE"):
-        Catalog.build(Settings.from_env({**env, "PACT_SOURCE__NOSUCH__SUBDOMAIN": "x"}))
+        Catalog.build(Settings.from_env({**env, "MYCO_SOURCE__NOSUCH__SUBDOMAIN": "x"}))
 
 
 def test_pack_validation():

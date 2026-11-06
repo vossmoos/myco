@@ -1,16 +1,16 @@
 import pytest
 
-from pact_mcp.settings import Settings, SettingsError, agent_env_name
+from myco_mcp.settings import Settings, SettingsError, agent_env_name
 
 
 def test_sources_and_agents_from_env():
     settings = Settings.from_env(
         {
-            "PACT_SOURCE__ZENDESK__DOMAIN": "acme.zendesk.com",
-            "PACT_SOURCE__ZENDESK__API_KEY": "k",
-            "PACT_SOURCE__SUPPORT_EU__TYPE": "zendesk",
-            "PACT_SOURCE__SUPPORT_EU__DOMAIN": "acme-eu.zendesk.com",
-            "PACT_AGENT__SUPPORT_BOT__KEY": "x" * 32,
+            "MYCO_SOURCE__ZENDESK__DOMAIN": "acme.zendesk.com",
+            "MYCO_SOURCE__ZENDESK__API_KEY": "k",
+            "MYCO_SOURCE__SUPPORT_EU__TYPE": "zendesk",
+            "MYCO_SOURCE__SUPPORT_EU__DOMAIN": "acme-eu.zendesk.com",
+            "MYCO_AGENT__SUPPORT_BOT__KEY": "x" * 32,
         }
     )
     by_name = {s.name: s for s in settings.sources}
@@ -24,11 +24,11 @@ def test_sources_and_agents_from_env():
 @pytest.mark.parametrize(
     "env",
     [
-        {"PACT_AGENT__BOT__KEY": "short"},
-        {"PACT_AGENT__A__KEY": "x" * 20, "PACT_AGENT__B__KEY": "x" * 20},
-        {"PACT_AGENT__BOT__TOKEN": "x" * 20},
-        {"PACT_OIDC__ISSUER": "https://idp.example.com"},
-        {"PACT_SOURCE__ZENDESK": "x"},
+        {"MYCO_AGENT__BOT__KEY": "short"},
+        {"MYCO_AGENT__A__KEY": "x" * 20, "MYCO_AGENT__B__KEY": "x" * 20},
+        {"MYCO_AGENT__BOT__TOKEN": "x" * 20},
+        {"MYCO_OIDC__ISSUER": "https://idp.example.com"},
+        {"MYCO_SOURCE__ZENDESK": "x"},
     ],
 )
 def test_invalid_env_is_rejected(env):

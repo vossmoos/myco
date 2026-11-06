@@ -1,7 +1,7 @@
 """The tool catalog: every configured source, its curated tools and its roles.
 
 Built once at startup from the environment. Sources, tools and roles never change
-while Pact runs; only the permissions in the config folder are hot-reloaded.
+while Myco runs; only the permissions in the config folder are hot-reloaded.
 """
 
 from __future__ import annotations
@@ -13,13 +13,13 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from pact_mcp.connector import Connector, PackError
-from pact_mcp.labels import Label, LabelPattern
-from pact_mcp.settings import Settings
+from myco_mcp.connector import Connector, PackError
+from myco_mcp.labels import Label, LabelPattern
+from myco_mcp.settings import Settings
 
-log = logging.getLogger("pact")
+log = logging.getLogger("myco")
 
-BUILTIN_MODULES = ("pact_mcp.packs.zendesk", "pact_mcp.packs.jira", "pact_mcp.packs.wrike")
+BUILTIN_MODULES = ("myco_mcp.packs.zendesk", "myco_mcp.packs.jira", "myco_mcp.packs.wrike")
 
 
 @dataclass(frozen=True)
@@ -72,7 +72,7 @@ class Catalog:
                 roles[f"{source.name}:{role}"] = tuple(LabelPattern.parse(f"{source.name}:{perm}") for perm in perms)
             log.info("source %s (%s pack v%s): %d tools", source.name, source.type, pack.version, len(pack.tools))
         if not sources:
-            log.warning("no sources configured; set PACT_SOURCE__<NAME>__<SETTING> variables")
+            log.warning("no sources configured; set MYCO_SOURCE__<NAME>__<SETTING> variables")
         return cls(sources=sources, tools=tools, roles=roles)
 
     async def aclose(self) -> None:
@@ -81,7 +81,7 @@ class Catalog:
 
 
 def load_connector_modules(plugins: tuple[str, ...] = ()) -> None:
-    """Import the example packs and any ``PACT_PLUGINS`` modules so their connectors register."""
+    """Import the example packs and any ``MYCO_PLUGINS`` modules so their connectors register."""
     for module in (*BUILTIN_MODULES, *plugins):
         importlib.import_module(module)
 

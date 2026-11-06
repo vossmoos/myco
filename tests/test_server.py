@@ -15,11 +15,11 @@ from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
 from fastmcp.exceptions import ToolError
 
-from pact_mcp.audit import AuditLog
-from pact_mcp.identity import UserTokenError
-from pact_mcp.policy import REDACTED
-from pact_mcp.server import create_server
-from pact_mcp.settings import Settings
+from myco_mcp.audit import AuditLog
+from myco_mcp.identity import UserTokenError
+from myco_mcp.policy import REDACTED
+from myco_mcp.server import create_server
+from myco_mcp.settings import Settings
 
 CRM = "https://crm.test/api"
 
@@ -44,12 +44,12 @@ def server(env, config_dir):
     )
     env = {
         **env,
-        "PACT_PLUGINS": "acme_crm",
-        "PACT_SOURCE__CRM__TYPE": "acme_crm",
-        "PACT_SOURCE__CRM__BASE_URL": CRM,
-        "PACT_SOURCE__CRM__API_KEY": "crm-key",
-        "PACT_AGENT__READER__KEY": READER_KEY,
-        "PACT_AGENT__ORPHAN__KEY": ORPHAN_KEY,
+        "MYCO_PLUGINS": "acme_crm",
+        "MYCO_SOURCE__CRM__TYPE": "acme_crm",
+        "MYCO_SOURCE__CRM__BASE_URL": CRM,
+        "MYCO_SOURCE__CRM__API_KEY": "crm-key",
+        "MYCO_AGENT__READER__KEY": READER_KEY,
+        "MYCO_AGENT__ORPHAN__KEY": ORPHAN_KEY,
     }
     stream = io.StringIO()
     mcp, gate = create_server(Settings.from_env(env), audit=AuditLog(stream=stream))
@@ -76,7 +76,7 @@ def server(env, config_dir):
 def client(server, key, user_token=None):
     headers = {"Authorization": f"Bearer {key}"}
     if user_token:
-        headers["X-Pact-User-Token"] = user_token
+        headers["X-Myco-User-Token"] = user_token
     return Client(StreamableHttpTransport(f"{server['url']}/mcp", headers=headers))
 
 

@@ -1,9 +1,9 @@
 """Zendesk (API v2) connector.
 
-Settings (``PACT_SOURCE__<NAME>__<SETTING>``):
+Settings (``MYCO_SOURCE__<NAME>__<SETTING>``):
 
     DOMAIN    acme.zendesk.com
-    API_KEY   the agent's Zendesk API key (plain key, Pact adds the Basic auth encoding)
+    API_KEY   the agent's Zendesk API key (plain key, Myco adds the Basic auth encoding)
     TIMEOUT   seconds, default 30
 """
 
@@ -16,8 +16,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import Field
 
-from pact_mcp.connector import Connector, Setting, tool
-from pact_mcp.http import HttpClient
+from myco_mcp.connector import Connector, Setting, tool
+from myco_mcp.http import HttpClient
 
 Status = Literal["open", "pending", "resolved", "closed"]
 Priority = Literal["low", "medium", "high", "urgent"]

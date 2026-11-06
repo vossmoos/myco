@@ -1,6 +1,6 @@
 import pytest
 
-from pact_mcp.labels import Label, LabelError, LabelPattern
+from myco_mcp.labels import Label, LabelError, LabelPattern
 
 
 def test_label_parse_and_hints():

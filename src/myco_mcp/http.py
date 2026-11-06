@@ -44,7 +44,7 @@ class HttpClient:
     ) -> None:
         self.client = httpx.AsyncClient(
             base_url=base_url.rstrip("/"),
-            headers={"Accept": "application/json", "User-Agent": "pact-mcp", **(headers or {})},
+            headers={"Accept": "application/json", "User-Agent": "myco-mcp", **(headers or {})},
             auth=auth,
             timeout=timeout,
             transport=transport,

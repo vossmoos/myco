@@ -12,8 +12,8 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from pact_mcp.catalog import ToolSpec
-from pact_mcp.config import (
+from myco_mcp.catalog import ToolSpec
+from myco_mcp.config import (
     PLACEHOLDER_RE,
     AgentPolicy,
     Grant,
@@ -23,7 +23,7 @@ from pact_mcp.config import (
     ScopeRule,
     UserEntry,
 )
-from pact_mcp.labels import Label
+from myco_mcp.labels import Label
 
 REDACTED = "[redacted]"
 
@@ -34,9 +34,9 @@ class ScopeError(PermissionError):
 
 @dataclass(frozen=True)
 class Caller:
-    """Who is calling: the agent (from its Pact key) and the user (from the forwarded token)."""
+    """Who is calling: the agent (from its Myco key) and the user (from the forwarded token)."""
 
-    agent_key_name: str  # SUPPORT_BOT, from PACT_AGENT__SUPPORT_BOT__KEY
+    agent_key_name: str  # SUPPORT_BOT, from MYCO_AGENT__SUPPORT_BOT__KEY
     agent: AgentPolicy | None
     user: str  # "anonymous", or the token's subject / email
     user_entries: tuple[UserEntry, ...]  # matched users.yaml entries

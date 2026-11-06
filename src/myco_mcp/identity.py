@@ -1,4 +1,4 @@
-"""Who is calling: agent keys (Pact's own) and forwarded user SSO tokens (OIDC)."""
+"""Who is calling: agent keys (Myco's own) and forwarded user SSO tokens (OIDC)."""
 
 from __future__ import annotations
 
@@ -12,9 +12,9 @@ import httpx
 import jwt
 from fastmcp.server.auth import AccessToken, TokenVerifier
 
-from pact_mcp.settings import OidcSettings
+from myco_mcp.settings import OidcSettings
 
-log = logging.getLogger("pact")
+log = logging.getLogger("myco")
 
 
 class AgentKeyVerifier(TokenVerifier):
@@ -86,7 +86,7 @@ class UserTokenValidator:
 
 
 class NoUserTokens:
-    """Used when PACT_OIDC__* is not set: any forwarded token is refused, never ignored."""
+    """Used when MYCO_OIDC__* is not set: any forwarded token is refused, never ignored."""
 
     async def claims(self, token: str) -> dict[str, Any]:
-        raise UserTokenError("user token sent but PACT_OIDC__ISSUER / PACT_OIDC__AUDIENCE are not configured")
+        raise UserTokenError("user token sent but MYCO_OIDC__ISSUER / MYCO_OIDC__AUDIENCE are not configured")

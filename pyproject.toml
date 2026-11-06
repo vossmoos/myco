@@ -3,7 +3,7 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pact-mcp"
+name = "myco-mcp"
 version = "0.1.0"
 description = "One MCP endpoint that gives each AI agent a curated, permissioned set of SaaS tools, configured as YAML in Git."
 readme = "README.md"
@@ -31,7 +31,7 @@ dependencies = [
 dev = ["pytest>=8", "pytest-asyncio>=0.24", "respx>=0.21", "ruff>=0.6"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pact_mcp"]
+packages = ["src/myco_mcp"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

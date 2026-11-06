@@ -1,8 +1,8 @@
-{{- define "pact.name" -}}
+{{- define "myco.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{- define "pact.fullname" -}}
+{{- define "myco.fullname" -}}
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
@@ -15,28 +15,28 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "pact.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "pact.name" . }}
+{{- define "myco.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "myco.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
-{{- define "pact.labels" -}}
-{{ include "pact.selectorLabels" . }}
+{{- define "myco.labels" -}}
+{{ include "myco.selectorLabels" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" }}
 {{- end -}}
 
-{{- define "pact.secretName" -}}
-{{- default (printf "%s-env" (include "pact.fullname" .)) .Values.existingSecret -}}
+{{- define "myco.secretName" -}}
+{{- default (printf "%s-env" (include "myco.fullname" .)) .Values.existingSecret -}}
 {{- end -}}
 
 {{/* ConfigMap keys cannot contain "/": agents/default.yaml -> agents__default.yaml */}}
-{{- define "pact.configKey" -}}
+{{- define "myco.configKey" -}}
 {{- . | replace "/" "__" -}}
 {{- end -}}
 
-{{- define "pact.configDir" -}}
+{{- define "myco.configDir" -}}
 {{- if eq .Values.config.source "gitSync" -}}
 {{- printf "/git/current/%s" (.Values.gitSync.path | trimAll "/") | trimSuffix "/" -}}
 {{- else -}}
@@ -44,7 +44,7 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" }}
 {{- end -}}
 {{- end -}}
 
-{{- define "pact.gitSyncEnv" -}}
+{{- define "myco.gitSyncEnv" -}}
 - name: GITSYNC_REPO
   value: {{ required "gitSync.repo is required when config.source=gitSync" .Values.gitSync.repo | quote }}
 - name: GITSYNC_REF

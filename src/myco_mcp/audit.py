@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger("pact")
+log = logging.getLogger("myco")
 
 
 class AuditLog:

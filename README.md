@@ -1,8 +1,8 @@
-# Pact
+# Myco
 
 **One MCP endpoint that gives each AI agent a curated set of SaaS tools, with every permission kept as YAML in Git.**
 
-Pact gives AI agents cloud-style IAM for the SaaS apps your cloud IAM can't reach. Each agent gets one endpoint, one key and a reviewed tool set, and sees only the tools and data its roles allow. Pact holds the vendor credentials; agents never do.
+Myco gives AI agents cloud-style IAM for the SaaS apps your cloud IAM can't reach. Each agent gets one endpoint, one key and a reviewed tool set, and sees only the tools and data its roles allow. Myco holds the vendor credentials; agents never do.
 
 - **Curated tools, not a proxy.** Each source ships a small, reviewed tool set with constrained arguments. There is no "call any endpoint" tool.
 - **One label per tool:** `source:entity:operation`, for example `zendesk:ticket:read`.
@@ -10,12 +10,12 @@ Pact gives AI agents cloud-style IAM for the SaaS apps your cloud IAM can't reac
 - **Users:** effective access is the agent's roles ∩ the user's roles. Without a user token, an agent runs as its named service user, or as the built-in `anonymous` user, which has no access by default.
 - **Data scoping:** replies are filtered by row (`company_id == {user.org}`) and by field (taints such as `pii`, plus redaction rules).
 - **Audit log:** every decision is a JSON line naming the agent, user, tool, label and the rule that applied.
-- **Configuration is only environment variables plus a folder of YAML.** Pact has no UI, no CLI and no LLM; every decision is deterministic.
+- **Configuration is only environment variables plus a folder of YAML.** Myco has no UI, no CLI and no LLM; every decision is deterministic.
 
 Built on [FastMCP](https://github.com/jlowin/fastmcp). License: MIT.
 
 ```
-Agent ──(Pact key, optional user SSO token)──▶ Pact /mcp ──(vendor credentials)──▶ your SaaS apps
+Agent ──(Myco key, optional user SSO token)──▶ Myco /mcp ──(vendor credentials)──▶ your SaaS apps
                                                1. identify agent + user
                                                2. map tool → label
                                                3. check roles, taints, denies
@@ -42,26 +42,26 @@ Agent ──(Pact key, optional user SSO token)──▶ Pact /mcp ──(vendor
 ## Quickstart
 
 ```bash
-git clone https://github.com/vossmoos/pact.git && cd pact
+git clone https://github.com/vossmoos/myco.git && cd myco
 cp .env.example .env
 ```
 
-Edit `.env`. Keep the sources you use and delete the blocks you don't: an empty required setting stops Pact at startup. Then set an agent key:
+Edit `.env`. Keep the sources you use and delete the blocks you don't: an empty required setting stops Myco at startup. Then set an agent key:
 
 ```dotenv
-PACT_SOURCE__JIRA__SITE=acme.atlassian.net
-PACT_SOURCE__JIRA__EMAIL=bot@acme.com
-PACT_SOURCE__JIRA__API_TOKEN=ATATT...
-PACT_AGENT__DEFAULT__KEY=<at least 16 random characters>
+MYCO_SOURCE__JIRA__SITE=acme.atlassian.net
+MYCO_SOURCE__JIRA__EMAIL=bot@acme.com
+MYCO_SOURCE__JIRA__API_TOKEN=ATATT...
+MYCO_AGENT__DEFAULT__KEY=<at least 16 random characters>
 ```
 
-Generate a key with `python3 -c "import secrets; print('pact_' + secrets.token_urlsafe(32))"`.
+Generate a key with `python3 -c "import secrets; print('myco_' + secrets.token_urlsafe(32))"`.
 
 Run it with Docker:
 
 ```bash
-docker build -t pact .
-docker run --rm -p 8080:8080 --env-file .env -v "$PWD/config:/config:ro" pact
+docker build -t myco .
+docker run --rm -p 8080:8080 --env-file .env -v "$PWD/config:/config:ro" myco
 ```
 
 Or with Python 3.12+:
@@ -69,7 +69,7 @@ Or with Python 3.12+:
 ```bash
 pip install -e .
 set -a; source .env; set +a
-python -m pact_mcp
+python -m myco_mcp
 ```
 
 Check it:
@@ -79,15 +79,15 @@ curl localhost:8080/health
 # {"status":"ok","version":"0.1.0","config":"3bcd9bd3777e"}
 ```
 
-The example [`config/`](config) folder ships a **`default` agent** with every role of every example pack. Its key is `PACT_AGENT__DEFAULT__KEY`; [`deploy.sh`](deploy.sh) generates one into `.env` when it is missing. Unattended, it runs as the service user `default-service`. The `anonymous` user has no access. Narrow both before real use.
+The example [`config/`](config) folder ships a **`default` agent** with every role of every example pack. Its key is `MYCO_AGENT__DEFAULT__KEY`; [`deploy.sh`](deploy.sh) generates one into `.env` when it is missing. Unattended, it runs as the service user `default-service`. The `anonymous` user has no access. Narrow both before real use.
 
 ## Connect an agent
 
-The endpoint is `http://<host>:8080/mcp` (MCP streamable HTTP). The agent authenticates with its Pact key:
+The endpoint is `http://<host>:8080/mcp` (MCP streamable HTTP). The agent authenticates with its Myco key:
 
 ```
-Authorization: Bearer <PACT_AGENT__<NAME>__KEY>
-X-Pact-User-Token: <the person's SSO token>        # optional, see "Users"
+Authorization: Bearer <MYCO_AGENT__<NAME>__KEY>
+X-Myco-User-Token: <the person's SSO token>        # optional, see "Users"
 ```
 
 Any MCP client works. A typical `mcp.json`:
@@ -95,10 +95,10 @@ Any MCP client works. A typical `mcp.json`:
 ```json
 {
   "mcpServers": {
-    "pact": {
+    "myco": {
       "type": "http",
-      "url": "https://pact.example.com/mcp",
-      "headers": { "Authorization": "Bearer pact_..." }
+      "url": "https://myco.example.com/mcp",
+      "headers": { "Authorization": "Bearer myco_..." }
     }
   }
 }
@@ -115,12 +115,12 @@ from fastmcp.client.transports import StreamableHttpTransport
 async def main():
     transport = StreamableHttpTransport(
         "http://127.0.0.1:8080/mcp",
-        headers={"Authorization": "Bearer pact_..."},
+        headers={"Authorization": "Bearer myco_..."},
     )
-    async with Client(transport) as pact:
-        for tool in await pact.list_tools():
+    async with Client(transport) as myco:
+        for tool in await myco.list_tools():
             print(tool.name)  # only the tools this key may use
-        result = await pact.call_tool("jira_get_issue", {"issue_key": "OPS-42"})
+        result = await myco.call_tool("jira_get_issue", {"issue_key": "OPS-42"})
         print(result.data)
 
 
@@ -134,23 +134,23 @@ asyncio.run(main())
 A **source** is one connected app account, configured with environment variables:
 
 ```dotenv
-PACT_SOURCE__<NAME>__<SETTING>=value
+MYCO_SOURCE__<NAME>__<SETTING>=value
 ```
 
 The lowercased `NAME` becomes the source name, which is the first part of every tool, label and role it publishes. `TYPE` picks the **pack** and defaults to the name, so you can connect the same app twice:
 
 ```dotenv
-PACT_SOURCE__ZENDESK__DOMAIN=acme.zendesk.com      # source "zendesk", type zendesk
-PACT_SOURCE__ZENDESK__API_KEY=...
-PACT_SOURCE__SUPPORT_EU__TYPE=zendesk                 # source "support_eu", type zendesk
-PACT_SOURCE__SUPPORT_EU__DOMAIN=acme-eu.zendesk.com
-PACT_SOURCE__SUPPORT_EU__API_KEY=...
+MYCO_SOURCE__ZENDESK__DOMAIN=acme.zendesk.com      # source "zendesk", type zendesk
+MYCO_SOURCE__ZENDESK__API_KEY=...
+MYCO_SOURCE__SUPPORT_EU__TYPE=zendesk                 # source "support_eu", type zendesk
+MYCO_SOURCE__SUPPORT_EU__DOMAIN=acme-eu.zendesk.com
+MYCO_SOURCE__SUPPORT_EU__API_KEY=...
 ```
 
-A **pack** is a connector (`<type>.py`) plus its label file (`<type>.yaml`). It defines the curated tools and the roles once; Pact adds the source name when it loads it:
+A **pack** is a connector (`<type>.py`) plus its label file (`<type>.yaml`). It defines the curated tools and the roles once; Myco adds the source name when it loads it:
 
 ```yaml
-# src/pact_mcp/packs/zendesk.yaml (excerpt)
+# src/myco_mcp/packs/zendesk.yaml (excerpt)
 tools:
   get_ticket:
     action: ticket:read
@@ -162,7 +162,7 @@ roles:
   contributor: [ticket:read, ticket:list, contact:read, ticket:write]
 ```
 
-The source `zendesk` therefore publishes the tool `zendesk_get_ticket` with label `zendesk:ticket:read`, and the roles `zendesk:reader` and `zendesk:contributor`. Pact refuses to start if a connector method has no label or a label has no method.
+The source `zendesk` therefore publishes the tool `zendesk_get_ticket` with label `zendesk:ticket:read`, and the roles `zendesk:reader` and `zendesk:contributor`. Myco refuses to start if a connector method has no label or a label has no method.
 
 ### Labels
 
@@ -187,7 +187,7 @@ config/
   domains.yaml          optional groups of sources
 ```
 
-Keep it in Git and route reviews with CODEOWNERS: each agent file can belong to its team, and `users.yaml` to security. Pact validates the **whole folder** on every load. A broken folder is refused and the last good one keeps running (`config.rejected` in the audit log). Changes are picked up every `PACT_RELOAD_SECONDS` (10s by default) without a restart, and connected clients receive `notifications/tools/list_changed`.
+Keep it in Git and route reviews with CODEOWNERS: each agent file can belong to its team, and `users.yaml` to security. Myco validates the **whole folder** on every load. A broken folder is refused and the last good one keeps running (`config.rejected` in the audit log). Changes are picked up every `MYCO_RELOAD_SECONDS` (10s by default) without a restart, and connected clients receive `notifications/tools/list_changed`.
 
 ### Agents
 
@@ -206,13 +206,13 @@ redact:                         # replace fields with "[redacted]"
     fields: [custom_fields]
 ```
 
-The key comes from `PACT_AGENT__SUPPORT_BOT__KEY` (hyphens become underscores). A key without an agent file connects but sees no tools; an agent file without a key cannot connect.
+The key comes from `MYCO_AGENT__SUPPORT_BOT__KEY` (hyphens become underscores). A key without an agent file connects but sees no tools; an agent file without a key cannot connect.
 
 ### Users, service users and `anonymous`
 
 Every call has a user, and effective access is **agent roles ∩ user roles**. The user is one of the following:
 
-1. **A person.** The agent forwards that person's SSO token in `X-Pact-User-Token`. Pact validates it against `PACT_OIDC__ISSUER` / `PACT_OIDC__AUDIENCE` and matches the claims against `match` entries. Every matching entry adds its roles.
+1. **A person.** The agent forwards that person's SSO token in `X-Myco-User-Token`. Myco validates it against `MYCO_OIDC__ISSUER` / `MYCO_OIDC__AUDIENCE` and matches the claims against `match` entries. Every matching entry adds its roles.
 2. **A service user.** An agent that calls without a token runs as the `users.yaml` entry that lists it in `service_for`. This is how unattended agents get access.
 3. **`anonymous`.** Everything else. It has **no roles** in the example config, so unattended calls from agents without a service user are denied.
 
@@ -260,7 +260,7 @@ A domain works in the source position of any pattern (`support:*:read`). Names m
 
 ### Audit log
 
-Every call writes one JSON line to stdout, and also to `PACT_AUDIT_FILE` if set:
+Every call writes one JSON line to stdout, and also to `MYCO_AUDIT_FILE` if set:
 
 ```json
 {"ts":"2026-10-11T16:23:22.264+00:00","audit":"tool.call","decision":"deny","reason":"no role of agent support-bot grants jira:issue:create","agent":"support-bot","user":"anonymous","tool":"jira_create_issue","label":"jira:issue:create","rule":"agent:no-role","args":["summary"],"config":"3bcd9bd3777e"}
@@ -288,7 +288,7 @@ deny:
 **2. Give it a key** in `.env` (or in the cluster Secret):
 
 ```dotenv
-PACT_AGENT__JIRA_TRIAGE__KEY=pact_9mV...   # python3 -c "import secrets; print('pact_' + secrets.token_urlsafe(32))"
+MYCO_AGENT__JIRA_TRIAGE__KEY=myco_9mV...   # python3 -c "import secrets; print('myco_' + secrets.token_urlsafe(32))"
 ```
 
 **3. Let it run unattended.** Effective access is agent ∩ user, and `anonymous` has no roles. So give the agent a service user in `config/users.yaml`; this is the file security reviews:
@@ -318,14 +318,14 @@ A connector is two files with the same name. This one ([`examples/connectors/acm
 ```python
 from typing import Any, Literal
 
-from pact_mcp.connector import Connector, Setting, tool
-from pact_mcp.http import HttpClient
+from myco_mcp.connector import Connector, Setting, tool
+from myco_mcp.http import HttpClient
 
 Stage = Literal["lead", "qualified", "proposal", "won", "lost"]
 
 
 class AcmeCrm(Connector):
-    type = "acme_crm"  # PACT_SOURCE__<NAME>__TYPE=acme_crm
+    type = "acme_crm"  # MYCO_SOURCE__<NAME>__TYPE=acme_crm
     settings = {
         "base_url": Setting(help="CRM API root"),
         "api_key": Setting(secret=True),
@@ -371,17 +371,17 @@ roles:
 **Load and configure it:**
 
 ```dotenv
-PACT_PLUGINS=acme_crm                 # module to import (must be on PYTHONPATH)
-PACT_SOURCE__CRM__TYPE=acme_crm
-PACT_SOURCE__CRM__BASE_URL=https://crm.acme.com/api
-PACT_SOURCE__CRM__API_KEY=...
+MYCO_PLUGINS=acme_crm                 # module to import (must be on PYTHONPATH)
+MYCO_SOURCE__CRM__TYPE=acme_crm
+MYCO_SOURCE__CRM__BASE_URL=https://crm.acme.com/api
+MYCO_SOURCE__CRM__API_KEY=...
 ```
 
 ```bash
 docker run --rm -p 8080:8080 --env-file .env \
   -v "$PWD/config:/config:ro" \
   -v "$PWD/examples/connectors:/plugins:ro" -e PYTHONPATH=/plugins \
-  pact
+  myco
 ```
 
 The source `crm` now publishes `crm_list_deals` (`crm:deal:list`), `crm_get_deal` and `crm_move_deal`, and the roles `crm:reader` and `crm:sales`. Agents without a `finance` toleration get `"margin": "[redacted]"`.
@@ -394,18 +394,18 @@ Rules for a good pack:
 - **Return plain JSON** (dicts and lists). List tools return a list of row dicts, so `scope` can filter them.
 - **A mislabelled tool is a security bug.** Review pack changes like code that grants access, and add tests ([`tests/test_connectors.py`](tests/test_connectors.py) uses `respx`).
 
-To ship a pack with Pact itself, put the two files in `src/pact_mcp/packs/` and add the module to `BUILTIN_MODULES` in [`catalog.py`](src/pact_mcp/catalog.py).
+To ship a pack with Myco itself, put the two files in `src/myco_mcp/packs/` and add the module to `BUILTIN_MODULES` in [`catalog.py`](src/myco_mcp/catalog.py).
 
 ## Example packs
 
 ### Zendesk (`TYPE=zendesk`)
 
-Settings: `DOMAIN` (e.g. `acme.zendesk.com`), `API_KEY` (the plain API key; Pact encodes it for Basic auth), `TIMEOUT` (optional, default 30 s).
+Settings: `DOMAIN` (e.g. `acme.zendesk.com`), `API_KEY` (the plain API key; Myco encodes it for Basic auth), `TIMEOUT` (optional, default 30 s).
 
 | Tool | Label | Notes |
 |---|---|---|
 | `list_tickets` | `ticket:list` | filter by requester e-mail, company, `updated_since` |
-| `search_tickets` | `ticket:list` | status, priority, tag, created-after (query is built by Pact) |
+| `search_tickets` | `ticket:list` | status, priority, tag, created-after (query is built by Myco) |
 | `get_ticket` | `ticket:read` | requester name/e-mail/phone and cc are `pii` fields |
 | `list_conversations` | `conversation:list` | e-mail fields are `pii` |
 | `get_contact` | `contact:read` | tool tainted `pii` |
@@ -450,30 +450,30 @@ Settings: `TOKEN` (permanent access token), `BASE_URL` (default `https://www.wri
 | `update_task` | `task:update` | |
 | `add_comment` | `comment:create` | |
 
-Roles: `reader` · `contributor`. Wrike answers a read the token may not see with an empty result, so Pact reports "not visible" rather than "does not exist".
+Roles: `reader` · `contributor`. Wrike answers a read the token may not see with an empty result, so Myco reports "not visible" rather than "does not exist".
 
 ## Configuration reference
 
 | Variable | Default | |
 |---|---|---|
-| `PACT_SOURCE__<NAME>__<SETTING>` | | Source settings; `TYPE` picks the pack |
-| `PACT_AGENT__<NAME>__KEY` | | Agent key, at least 16 characters, unique per agent |
-| `PACT_OIDC__ISSUER`, `PACT_OIDC__AUDIENCE` | | Enable forwarded user tokens |
-| `PACT_OIDC__JWKS_URL` | from discovery | Override the JWKS location |
-| `PACT_OIDC__ALGORITHMS` | `RS256,ES256,PS256` | |
-| `PACT_USER_TOKEN_HEADER` | `X-Pact-User-Token` | |
-| `PACT_CONFIG_DIR` | `config` (`/config` in the image) | Permissions folder |
-| `PACT_RELOAD_SECONDS` | `10` | `0` disables hot reload |
-| `PACT_HOST`, `PACT_PORT` | `0.0.0.0`, `8080` | |
-| `PACT_MCP_PATH` | `/mcp` | |
-| `PACT_AUDIT_FILE` | | Extra JSON-lines audit file |
-| `PACT_LOG_LEVEL` | `INFO` | |
-| `PACT_PLUGINS` | | Extra connector modules, comma-separated |
-| `PACT_STATELESS_HTTP` | `false` | `true` for several replicas without sticky sessions |
+| `MYCO_SOURCE__<NAME>__<SETTING>` | | Source settings; `TYPE` picks the pack |
+| `MYCO_AGENT__<NAME>__KEY` | | Agent key, at least 16 characters, unique per agent |
+| `MYCO_OIDC__ISSUER`, `MYCO_OIDC__AUDIENCE` | | Enable forwarded user tokens |
+| `MYCO_OIDC__JWKS_URL` | from discovery | Override the JWKS location |
+| `MYCO_OIDC__ALGORITHMS` | `RS256,ES256,PS256` | |
+| `MYCO_USER_TOKEN_HEADER` | `X-Myco-User-Token` | |
+| `MYCO_CONFIG_DIR` | `config` (`/config` in the image) | Permissions folder |
+| `MYCO_RELOAD_SECONDS` | `10` | `0` disables hot reload |
+| `MYCO_HOST`, `MYCO_PORT` | `0.0.0.0`, `8080` | |
+| `MYCO_MCP_PATH` | `/mcp` | |
+| `MYCO_AUDIT_FILE` | | Extra JSON-lines audit file |
+| `MYCO_LOG_LEVEL` | `INFO` | |
+| `MYCO_PLUGINS` | | Extra connector modules, comma-separated |
+| `MYCO_STATELESS_HTTP` | `false` | `true` for several replicas without sticky sessions |
 
 ## Deploy
 
-Every tenant gets its own Pact instance, its own `.env` and its own config folder, all from the same image.
+Every tenant gets its own Myco instance, its own `.env` and its own config folder, all from the same image.
 
 ### Docker
 
@@ -481,9 +481,9 @@ See [Quickstart](#quickstart). The image runs as a non-root user (uid 10001), li
 
 ### Helm
 
-The chart in [`helm/pact`](helm/pact) runs Pact with a read-only root filesystem. Inputs:
+The chart in [`helm/myco`](helm/myco) runs Myco with a read-only root filesystem. Inputs:
 
-- `existingSecret`: a Secret with the `PACT_*` variables (sources, agent keys, OIDC).
+- `existingSecret`: a Secret with the `MYCO_*` variables (sources, agent keys, OIDC).
 - `config.source`:
   - `configMap`: files from `config.files`. `deploy.sh` fills it from `./config`.
   - `gitSync`: a [git-sync](https://github.com/kubernetes/git-sync) sidecar keeps a checkout of your permissions repo current (`gitSync.repo`, `ref`, `path`, `existingSecret` holding `GITSYNC_USERNAME`/`GITSYNC_PASSWORD`).
@@ -491,14 +491,14 @@ The chart in [`helm/pact`](helm/pact) runs Pact with a read-only root filesystem
 - `ingress`: publishes only `/mcp` and `/health`, with TLS via cert-manager.
 
 ```bash
-kubectl create namespace pact
-kubectl -n pact create secret generic pact-env --from-env-file=.env.pact   # only PACT_* lines
-helm upgrade --install pact helm/pact -n pact \
-  --set existingSecret=pact-env \
-  --set config.source=gitSync --set gitSync.repo=https://github.com/acme/pact-config.git
+kubectl create namespace myco
+kubectl -n myco create secret generic myco-env --from-env-file=.env.myco   # only MYCO_* lines
+helm upgrade --install myco helm/myco -n myco \
+  --set existingSecret=myco-env \
+  --set config.source=gitSync --set gitSync.repo=https://github.com/acme/myco-config.git
 ```
 
-Config changes don't restart the pod; Pact hot-reloads the folder. Sessions are in memory, so keep `replicaCount: 1`, or set `env.PACT_STATELESS_HTTP: "true"` before scaling out.
+Config changes don't restart the pod; Myco hot-reloads the folder. Sessions are in memory, so keep `replicaCount: 1`, or set `env.MYCO_STATELESS_HTTP: "true"` before scaling out.
 
 ### Scaleway Kubernetes Kapsule with `deploy.sh`
 
@@ -509,9 +509,9 @@ Config changes don't restart the pod; Pact hot-reloads the folder. Sessions are 
 1. A Kapsule cluster, and the [`scw` CLI](https://github.com/scaleway/scaleway-cli) configured (`scw init`). You also need `docker`, `kubectl`, `helm` and `python3`.
 2. A private registry namespace:
    ```bash
-   scw registry namespace create name=pact region=fr-par is-public=false
+   scw registry namespace create name=myco region=fr-par is-public=false
    ```
-3. To publish Pact on a hostname: an ingress controller and cert-manager with a `letsencrypt-prod` ClusterIssuer in the cluster, and a DNS record pointing at the ingress load balancer. (ingress-nginx is no longer maintained upstream; any controller works through `DEPLOY_INGRESS_CLASS`.)
+3. To publish Myco on a hostname: an ingress controller and cert-manager with a `letsencrypt-prod` ClusterIssuer in the cluster, and a DNS record pointing at the ingress load balancer. (ingress-nginx is no longer maintained upstream; any controller works through `DEPLOY_INGRESS_CLASS`.)
 
 **Deploy**
 
@@ -524,10 +524,10 @@ cp .env.example .env
 The script:
 
 1. Reads `.env`. Variables already exported in your shell take precedence.
-2. Generates `PACT_AGENT__DEFAULT__KEY` into `.env` if it is empty. This is the default all-access agent.
+2. Generates `MYCO_AGENT__DEFAULT__KEY` into `.env` if it is empty. This is the default all-access agent.
 3. Installs the Kapsule kubeconfig for `SCW_K8S_CLUSTER_ID`. Without it, the script uses the current kubectl context and warns.
-4. Builds `linux/amd64` and pushes `rg.<region>.scw.cloud/<namespace>/pact:<git-sha>` and `:latest`.
-5. Creates the namespace, the `scaleway-registry` pull secret, and the `<release>-env` Secret from every `PACT_*` line of `.env`.
+4. Builds `linux/amd64` and pushes `rg.<region>.scw.cloud/<namespace>/myco:<git-sha>` and `:latest`.
+5. Creates the namespace, the `scaleway-registry` pull secret, and the `<release>-env` Secret from every `MYCO_*` line of `.env`.
 6. Ships `./config` as a ConfigMap (or wires git-sync when `DEPLOY_GIT_REPO` is set), then runs `helm upgrade --install --wait`.
 
 Useful variants:
@@ -543,7 +543,7 @@ Rotating a key means changing it in `.env` and running `SKIP_BUILD=1 ./deploy.sh
 
 ## Security notes
 
-- **Only Pact holds vendor credentials.** Give each instance its own, least-privilege vendor accounts. A shared full-access vendor key would undo tenant separation.
+- **Only Myco holds vendor credentials.** Give each instance its own, least-privilege vendor accounts. A shared full-access vendor key would undo tenant separation.
 - **Secrets live in the environment.** Anything that can inspect the process can read them. Inject them from a secret manager or a Kubernetes Secret, never from the config repo.
 - **Explicit deny wins.** Combine broad roles with narrow `deny` rules for guardrails such as `*:*:delete` and `*:*:send`.
 - **Free text is not redacted.** Field redaction covers structured fields (e-mails, phones). Ticket bodies, descriptions and comments can still contain personal data. Grant those tools deliberately.
@@ -560,7 +560,7 @@ python3.12 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 Layout:
 
 ```
-src/pact_mcp/
+src/myco_mcp/
   server.py      FastMCP app, per-call gate, tools/list filtering, hot reload
   policy.py      decisions (roles ∩ user, deny, taints) and reply shaping
   config.py      config folder loading and validation
@@ -571,7 +571,7 @@ src/pact_mcp/
   packs/         example connector packs (Zendesk, Jira, Wrike)
 config/          example permissions (default agent with full access)
 examples/        example plugin connector
-helm/pact/       Helm chart
+helm/myco/       Helm chart
 deploy.sh        Scaleway Kapsule deploy
 ```
 

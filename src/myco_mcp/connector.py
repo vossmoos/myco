@@ -5,7 +5,7 @@ A connector is two files with the same name:
 * ``acme.py``   — a :class:`Connector` subclass whose ``@tool`` methods call the vendor API.
 * ``acme.yaml`` — the pack: one label per tool, optional taints, and the roles.
 
-Pact refuses to start when the two disagree: every ``@tool`` method needs a label in the
+Myco refuses to start when the two disagree: every ``@tool`` method needs a label in the
 pack and every pack tool needs a method, so no tool can ever be published unlabelled.
 """
 
@@ -20,9 +20,9 @@ from typing import Any, ClassVar
 
 import yaml
 
-from pact_mcp.labels import NAME_RE, Label, LabelError, LabelPattern
+from myco_mcp.labels import NAME_RE, Label, LabelError, LabelPattern
 
-_TOOL_MARK = "__pact_tool__"
+_TOOL_MARK = "__myco_tool__"
 
 
 class PackError(ValueError):
@@ -39,7 +39,7 @@ def tool(fn: Callable[..., Any]) -> Callable[..., Any]:
 
 @dataclass(frozen=True)
 class Setting:
-    """One ``PACT_SOURCE__<NAME>__<SETTING>`` variable a connector reads."""
+    """One ``MYCO_SOURCE__<NAME>__<SETTING>`` variable a connector reads."""
 
     required: bool = True
     secret: bool = False
@@ -142,7 +142,7 @@ def _only_keys(raw: Mapping[str, Any], allowed: set[str], origin: str) -> None:
 class Connector:
     """Base class for a source type. Subclasses set ``type`` and ``settings``.
 
-    One instance is created per configured source, so ``PACT_SOURCE__SUPPORT_EU__TYPE=zendesk``
+    One instance is created per configured source, so ``MYCO_SOURCE__SUPPORT_EU__TYPE=zendesk``
     gives a second, independent Zendesk connector named ``support_eu``.
     """
 
@@ -206,7 +206,7 @@ class Connector:
     def resolve_settings(cls, source: str, values: Mapping[str, str]) -> dict[str, str]:
         unknown = set(values) - set(cls.settings)
         if unknown:
-            names = ", ".join(f"PACT_SOURCE__{source.upper()}__{u.upper()}" for u in sorted(unknown))
+            names = ", ".join(f"MYCO_SOURCE__{source.upper()}__{u.upper()}" for u in sorted(unknown))
             raise PackError(f"source {source!r} ({cls.type}): unknown settings {names}")
         resolved: dict[str, str] = {}
         for key, setting in cls.settings.items():
@@ -214,7 +214,7 @@ class Connector:
             if value is None or value == "":
                 if setting.required:
                     raise PackError(
-                        f"source {source!r} ({cls.type}): PACT_SOURCE__{source.upper()}__{key.upper()} "
+                        f"source {source!r} ({cls.type}): MYCO_SOURCE__{source.upper()}__{key.upper()} "
                         f"is required{f' ({setting.help})' if setting.help else ''}"
                     )
                 continue

@@ -1,4 +1,4 @@
-# Zendesk pack. Pact prefixes every label, tool and role with the source name,
+# Zendesk pack. Myco prefixes every label, tool and role with the source name,
 # so a source named "zendesk" publishes zendesk_get_ticket = zendesk:ticket:read
 # and the roles zendesk:reader, zendesk:contributor, zendesk:responder.
 pack: zendesk
