@@ -1,6 +1,8 @@
 # Zendesk pack. Myco prefixes every label, tool and role with the source name,
 # so a source named "zendesk" publishes zendesk_get_ticket = zendesk:ticket:read
 # and the roles zendesk:reader, zendesk:contributor, zendesk:responder.
+# `record:` names the record a reply is about, so a tool can be witnessed into memory
+# (MYCO_SOURCE__<NAME>__WITNESS); search and list tools have none.
 pack: zendesk
 version: "1"
 description: Helpdesk tickets, conversations, contacts, companies and solution articles.
@@ -10,19 +12,20 @@ tools:
   search_tickets: ticket:list
   get_ticket:
     action: ticket:read
+    record: { id: "ticket:{id}", time: updated_at }
     taint_fields:
       pii: [requester.name, requester.email, requester.phone, requester.mobile, cc_emails]
   list_conversations:
     action: conversation:list
     taint_fields:
       pii: [from_email, to_emails, cc_emails]
-  create_ticket: ticket:create
-  update_ticket: ticket:update
-  add_note: note:create
-  reply_to_ticket: reply:send
-  get_contact: { action: contact:read, taints: [pii] }
-  get_company: company:read
-  get_article: article:read
+  create_ticket: { action: ticket:create, record: { id: "ticket:{id}", time: updated_at } }
+  update_ticket: { action: ticket:update, record: { id: "ticket:{id}", time: updated_at } }
+  add_note: { action: note:create, record: { id: "ticket:{ticket_id}", time: created_at } }
+  reply_to_ticket: { action: reply:send, record: { id: "ticket:{ticket_id}", time: created_at } }
+  get_contact: { action: contact:read, taints: [pii], record: { id: "contact:{id}", time: created_at } }
+  get_company: { action: company:read, record: { id: "company:{id}", time: updated_at } }
+  get_article: { action: article:read, record: { id: "article:{id}", time: updated_at } }
 
 roles:
   reader: [ticket:read, ticket:list, conversation:list, contact:read, company:read, article:read]

@@ -8,7 +8,10 @@ Myco gives AI agents cloud-style IAM for the SaaS apps your cloud IAM can't reac
 - **One label per tool:** `source:entity:operation`, for example `zendesk:ticket:read`.
 - **Roles per source**, such as `zendesk:reader`, combined per agent. Explicit deny always wins.
 - **Users:** effective access is the agent's roles ∩ the user's roles. Without a user token, an agent runs as its named service user, or as the built-in `anonymous` user, which has no access by default.
-- **Data scoping:** replies are filtered by row (`company_id == {user.org}`) and by field (taints such as `pii`, plus redaction rules).
+- **Data scoping:** replies are filtered by row (`company_id == {user.org}`) and by field (taints such as `pii` on declared fields, plus redaction rules).
+- **Labels from arguments:** a tool can take its label from an argument, and Myco can fill that argument itself: company memory is labelled by who wrote it (`memory:<writer>:read`), so each agent reads exactly the writers it is granted.
+- **Pinned arguments:** an agent file can fix arguments (`scope: sales`); the agent never sees them and cannot change them.
+- **Witnessing:** a connector instance can record in company memory what selected tools showed an agent (`MYCO_SOURCE__<NAME>__WITNESS`).
 - **Audit log:** every decision is a JSON line naming the agent, user, tool, label and the rule that applied.
 - **Configuration is only environment variables plus a folder of YAML.** Myco has no UI, no CLI and no LLM; every decision is deterministic.
 
@@ -196,6 +199,7 @@ Keep it in Git and route reviews with CODEOWNERS: each agent file can belong to 
 agent: support-bot              # must match the file name
 owner: anna@acme.com
 roles: [zendesk:reader, jira:reader]
+permissions: ["memory:support_bot:*"]   # label patterns granted directly, next to roles
 deny: ["*:*:delete", "*:*:send"]
 tolerations: []                 # e.g. [pii]
 scope:                          # keep only rows whose fields match (applies to replies)
@@ -205,6 +209,9 @@ redact:                         # replace fields with "[redacted]"
   - match: "zendesk:*:*"
     fields: [custom_fields]
 ```
+
+`roles` grant a pack's named roles; `permissions` grant label patterns directly
+(`memory:hubspot:read`, `memory:*:read`). Both work in `users.yaml` entries too.
 
 The key comes from `MYCO_AGENT__SUPPORT_BOT__KEY` (hyphens become underscores). A key without an agent file connects but sees no tools; an agent file without a key cannot connect.
 
@@ -239,6 +246,48 @@ users:
 
 In the audit log, the user shows as the token's e-mail or subject, `service:<entry>`, or `anonymous`.
 
+### Labels from an argument
+
+A pack can put an argument in the entity position of a label:
+
+```yaml
+tools:
+  recall: { action: "{scope}:list" }
+roles:
+  reader: ["*:read", "*:list"]                     # every scope
+  "{scope}_reader": ["{scope}:read", "{scope}:list"] # one role per scope
+```
+
+The connector says which values the argument may take (`label_values`, here from the
+source's `SCOPES` setting), and each value becomes a label: with `SCOPES=sales,support`,
+`memory_recall` carries `memory:sales:list` or `memory:support:list`, and the templated
+role becomes `memory:sales_reader` and `memory:support_reader`. Every existing rule works
+on these labels unchanged, e.g. `deny: ["memory:hr:*"]`.
+
+- A call is checked once per label it carries; every one must be allowed.
+- An omitted list argument becomes every value the caller may use; a single-value argument
+  is filled when exactly one value is allowed.
+- `tools/list` restricts the argument to the caller's values (`enum`) and says so in the
+  description. A value the connector does not know is refused before any check.
+- With `fill: allowed` the argument is hidden from the agent and Myco always passes every
+  value the caller may use; with `fill: agent` it is hidden and set to the calling agent's
+  name (`support-bot` → `support_bot`). The agent cannot narrow, widen or fake either.
+
+### Pinned arguments
+
+```yaml
+# config/agents/sales-bot.yaml
+pin:
+  - match: "memory:*:create"
+    args: { scope: sales }
+```
+
+A pinned argument is set on every matching call, whatever the agent sends, and removed
+from that tool's schema in `tools/list`. Values may use `{user.<claim>}` and
+`{agent.name}`; a call whose user lacks the claim is refused (`pin:missing-claim`). Pins
+are allowed in agent files and `users.yaml` entries; a user entry's pin wins over the
+agent's. Use them to confine an agent's writes to one scope or project.
+
 ### Taints, scope and redaction
 
 - **Tool taints** (`taints: [pii]` in the pack) hide a tool unless the agent lists a matching toleration.
@@ -247,6 +296,32 @@ In the audit log, the user shows as the token's e-mail or subject, `service:<ent
 - **`redact`** replaces extra fields with `[redacted]` for that agent or user.
 
 Tool descriptions tell the agent its scope and redacted fields.
+
+### Witnessing: what agents were shown, into memory
+
+A connector instance can record in company memory what selected tools showed an agent.
+It is set per source instance, next to its URL and key, and works for every pack:
+
+```dotenv
+MYCO_SOURCE__ZENDESK__WITNESS=get_ticket,get_contact,add_note   # which tools
+MYCO_SOURCE__ZENDESK__WITNESS_MEMORY=memory                     # an etchmem source
+MYCO_SOURCE__ZENDESK__WITNESS_SCOPE=support                     # topic (default general)
+MYCO_SOURCE__SUPPORT_EU__WITNESS=                               # another instance: nothing
+```
+
+After an allowed call to a listed tool, Myco answers the agent, then deposits in the
+background: the call's input and the reply **as the agent saw it** (after redaction),
+written by the **calling agent**, with `source_record_id` from the pack's `record:` entry
+(`zendesk:ticket:7`) and the record's own change time. The agent then finds it in its own
+memory (`memory:<agent>:read`), without having to call `remember`. A failed deposit is
+logged as a `tool.witness` audit event and never affects the call.
+
+- Only tools whose pack declares a `record:` can be witnessed (single records and write
+  outcomes; search and list tools have none). A typo, a tool without a record or a
+  `WITNESS_MEMORY` that is not an etchmem source stops Myco at startup.
+- Granting `memory:<agent>:read` to another agent grants what that agent was shown.
+- Witnessed records are dated observations, not a copy kept fresh: the source system
+  stays the truth for the current state. Erase by record with `memory_forget(source_record_ids=…)`.
 
 ### Domains
 
@@ -396,6 +471,8 @@ Rules for a good pack:
 
 To ship a pack with Myco itself, put the two files in `src/myco_mcp/packs/` and add the module to `BUILTIN_MODULES` in [`catalog.py`](src/myco_mcp/catalog.py).
 
+To have a coding agent generate a pack from an OpenAPI spec or an upstream MCP server, and regenerate it when the vendor API changes, use the [new-connector skill](doc/skills/new-connector/SKILL.md). More guides are in [`doc/`](doc/README.md).
+
 ## Example packs
 
 ### Zendesk (`TYPE=zendesk`)
@@ -451,6 +528,56 @@ Settings: `TOKEN` (permanent access token), `BASE_URL` (default `https://www.wri
 | `add_comment` | `comment:create` | |
 
 Roles: `reader` · `contributor`. Wrike answers a read the token may not see with an empty result, so Myco reports "not visible" rather than "does not exist".
+
+### etchmem (`TYPE=etchmem`)
+
+Company memory from [etchmem](https://github.com/vossmoos/etchmem) (0.4 or later):
+consolidated beliefs with provenance, **readable per writer**.
+
+Every signal in etchmem has one writer: the agent that deposited it through Myco, an
+import job, or a source system. Labels are `memory:<writer>:<operation>`, in the same form
+as `freshdesk:ticket:read`:
+
+```yaml
+# config/agents/public-bot.yaml
+permissions:
+  - "memory:public_bot:*"        # read and write its own notes
+  - "memory:support_bot:read"    # read the support bot's notes
+  - "memory:zendesk:read"        # read knowledge from Zendesk
+# config/agents/internal-bot.yaml
+permissions:
+  - "memory:internal_bot:*"
+  - "memory:*:read"              # read everything in memory
+```
+
+- **Reading.** Myco labels a read with every writer the caller may read and passes that
+  list to etchmem, which returns only beliefs **all** of whose writers are in it. A belief
+  built partly from internal notes never reaches `public-bot`. The agent never sees the list.
+- **Writing.** `remember` is labelled `memory:<calling agent>:create` and stamps that agent
+  as the writer. An agent can only ever write as itself, and never labels what it writes.
+- **Scopes are topics, not permissions:** a free filter on reads and writes (a skill's
+  focus). `remember` uses `DEFAULT_SCOPE` when the agent names none.
+
+Settings: `BASE_URL` (e.g. `http://etchmem:8000`), `API_KEY` (etchmem's
+`ETCHMEM_API_KEY`), `WRITERS` (every writer whose memory may be read through Myco,
+comma-separated; each becomes a label entity, so use lowercase names and map other
+spellings with `support_bot=support-bot`; memory from a writer not listed is never shown),
+`DEFAULT_SCOPE` (default `general`), `TIMEOUT`.
+
+| Tool | Label | Notes |
+|---|---|---|
+| `recall` | `{writers}:read` | beliefs by meaning, optionally within scopes |
+| `know` | `{writers}:read` | everything about one subject, exhaustive |
+| `list_beliefs` | `{writers}:read` | filter by scope, property, entity type, status, confidence; paged |
+| `history` | `{writers}:read` | version timeline of one belief |
+| `dossier` | `{writers}:read` | belief, versions, claims and raw signals |
+| `remember` | `{writer}:create` | deposit as the calling agent; `actor` comes from the call |
+| `forget` | `subject:delete` | erase a subject, source records or signals everywhere |
+
+A belief the caller may not read is reported exactly like one that does not exist.
+Myco contains no model and does not read content: it maps tools to labels you wrote down
+and enforces them. etchmem should be reachable only by Myco: give it an API key and keep
+it off the public network.
 
 ## Configuration reference
 
@@ -568,7 +695,7 @@ src/myco_mcp/
   connector.py   Connector base class, @tool, pack format
   identity.py    agent keys, OIDC user tokens
   audit.py       JSON-lines audit log
-  packs/         example connector packs (Zendesk, Jira, Wrike)
+  packs/         connector packs (Zendesk, Jira, Wrike, etchmem)
 config/          example permissions (default agent with full access)
 examples/        example plugin connector
 helm/myco/       Helm chart

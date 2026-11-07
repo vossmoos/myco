@@ -2,7 +2,9 @@
 
 Effective access = agent roles ∩ user roles, minus explicit denies (which always win),
 minus tools whose taints the agent does not tolerate. Allowed replies are then narrowed
-to the caller's data scope (rows) and redacted (fields).
+to the caller's data scope (rows), stripped of rows whose taints the agent does not
+tolerate, and redacted (fields). A tool whose label depends on an argument (``{scope}``)
+is decided once per label the call carries; every one must be allowed.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from myco_mcp.config import (
     ScopeRule,
     UserEntry,
 )
+from myco_mcp.connector import agent_label_value
 from myco_mcp.labels import Label
 
 REDACTED = "[redacted]"
@@ -30,6 +33,10 @@ REDACTED = "[redacted]"
 
 class ScopeError(PermissionError):
     """A single-object reply lies outside the caller's data scope."""
+
+
+class PinError(PermissionError):
+    """A pinned argument needs a user claim the caller does not have."""
 
 
 @dataclass(frozen=True)
@@ -80,8 +87,11 @@ def build_caller(
     return Caller(agent_key_name, agent, user, entries, dict(claims))
 
 
-def decide(caller: Caller, tool: ToolSpec, domains: Mapping[str, frozenset[str]]) -> Decision:
-    label = tool.label
+def decide(
+    caller: Caller, tool: ToolSpec, domains: Mapping[str, frozenset[str]], label: Label | None = None
+) -> Decision:
+    """The decision for one label: the tool's own, or ``label`` for a templated tool."""
+    label = label or tool.label
     if caller.user_error:
         return Decision(False, "user:token-rejected", caller.user_error)
     agent = caller.agent
@@ -116,10 +126,65 @@ def decide(caller: Caller, tool: ToolSpec, domains: Mapping[str, frozenset[str]]
     return Decision(True, f"allow:{agent_grant.role}&{user_entry.name}/{user_grant.role}")
 
 
-def shape_reply(caller: Caller, tool: ToolSpec, reply: Any, domains: Mapping[str, frozenset[str]]) -> Any:
-    """Filter rows by data scope, then redact fields. Returns a new object."""
-    scopes = _rules(caller, "scope", tool.label, domains)
-    redactions = redaction_paths(caller, tool, domains)
+def decide_labels(
+    caller: Caller, tool: ToolSpec, labels: Iterable[Label], domains: Mapping[str, frozenset[str]]
+) -> Decision:
+    """Every label of one call must be allowed; the first refusal is the answer."""
+    rules = []
+    for label in labels:
+        decision = decide(caller, tool, domains, label)
+        if not decision.allowed:
+            return decision
+        rules.append(decision.rule)
+    if not rules:
+        return Decision(False, "label:none", f"{tool.name}: the call names no {tool.label_arg}")
+    return Decision(True, ",".join(dict.fromkeys(rules)))
+
+
+def visible(caller: Caller, tool: ToolSpec, domains: Mapping[str, frozenset[str]]) -> bool:
+    """Whether ``tools/list`` shows the tool: some label it can carry is allowed."""
+    if tool.label_fill == "agent":
+        if caller.agent is None:
+            return False
+        return decide(caller, tool, domains, tool.label_for(agent_label_value(caller.agent.name))).allowed
+    return any(decide(caller, tool, domains, label).allowed for label in tool.labels)
+
+
+def allowed_values(caller: Caller, tool: ToolSpec, domains: Mapping[str, frozenset[str]]) -> list[str]:
+    """The values of a templated tool's label argument this caller may use."""
+    return [v for v in tool.label_values if decide(caller, tool, domains, tool.label_for(v)).allowed]
+
+
+def pinned_args(caller: Caller, tool: ToolSpec, domains: Mapping[str, frozenset[str]]) -> dict[str, Any]:
+    """Arguments fixed by the agent's and user's pin rules, rendered for this caller.
+
+    A rule applies when its pattern matches any label the tool can carry, and only to
+    arguments the tool has. Later principals (the user entries) win over the agent."""
+    params = _parameters(tool)
+    pinned: dict[str, Any] = {}
+    for principal in _principals(caller):
+        for rule in principal.pin:
+            if not any(rule.match.matches(label, domains) for label in tool.labels):
+                continue
+            for name, value in rule.args.items():
+                if name in params:
+                    pinned[name] = _render_pin(name, value, caller, principal.name)
+    return pinned
+
+
+def shape_reply(
+    caller: Caller,
+    tool: ToolSpec,
+    reply: Any,
+    domains: Mapping[str, frozenset[str]],
+    labels: Iterable[Label] | None = None,
+) -> Any:
+    """Filter rows by data scope, then redact fields.
+
+    Returns a new object. ``labels`` are the call's labels (default: the tool's)."""
+    labels = tuple(labels) if labels is not None else (tool.label,)
+    scopes = _rules_any(caller, "scope", labels, domains)
+    redactions = redaction_paths(caller, tool, domains, labels)
     if not scopes and not redactions:
         return reply
     shaped = copy.deepcopy(reply)
@@ -136,24 +201,40 @@ def shape_reply(caller: Caller, tool: ToolSpec, reply: Any, domains: Mapping[str
     return shaped
 
 
-def redaction_paths(caller: Caller, tool: ToolSpec, domains: Mapping[str, frozenset[str]]) -> list[str]:
+def redaction_paths(
+    caller: Caller,
+    tool: ToolSpec,
+    domains: Mapping[str, frozenset[str]],
+    labels: Iterable[Label] | None = None,
+) -> list[str]:
     tolerations = caller.agent.tolerations if caller.agent else frozenset()
     paths = [p for taint, ps in tool.taint_fields.items() if taint not in tolerations for p in ps]
-    for rule in _rules(caller, "redact", tool.label, domains):
+    labels = tuple(labels) if labels is not None else (tool.label,)
+    for rule in _rules_any(caller, "redact", labels, domains):
         paths.extend(rule.fields)
     return list(dict.fromkeys(paths))
 
 
 def describe_limits(caller: Caller, tool: ToolSpec, domains: Mapping[str, frozenset[str]]) -> str:
-    """Text appended to a tool description so the agent knows its data scope."""
+    """Text appended to a tool description so the agent knows its limits."""
     notes = []
-    scopes = _rules(caller, "scope", tool.label, domains)
+    labels = tool.labels
+    if tool.label_arg and not tool.label_fill:
+        values = allowed_values(caller, tool, domains)
+        notes.append(f"Allowed {tool.label_arg}: {', '.join(values)}.")
+    scopes = _rules_any(caller, "scope", labels, domains)
     if scopes:
         conditions = ", ".join(f"{k} = {v}" for rule in scopes for k, v in rule.where.items())
         notes.append(f"Data scope: only records where {conditions}.")
-    redacted = redaction_paths(caller, tool, domains)
+    redacted = redaction_paths(caller, tool, domains, labels)
     if redacted:
         notes.append(f"Redacted fields: {', '.join(redacted)}.")
+    try:
+        pinned = pinned_args(caller, tool, domains)
+    except PinError:
+        pinned = {}
+    if pinned:
+        notes.append("Fixed for you: " + ", ".join(f"{k} = {v}" for k, v in pinned.items()) + ".")
     return " ".join(notes)
 
 
@@ -167,10 +248,35 @@ def _principals(caller: Caller) -> list[Principal]:
 
 
 def _rules(caller: Caller, kind: str, label: Label, domains: Mapping[str, frozenset[str]]) -> list[Any]:
+    return _rules_any(caller, kind, (label,), domains)
+
+
+def _rules_any(caller: Caller, kind: str, labels: Iterable[Label], domains: Mapping[str, frozenset[str]]) -> list[Any]:
+    labels = tuple(labels)
     rules: list[ScopeRule | RedactRule] = []
     for principal in _principals(caller):
-        rules.extend(r for r in getattr(principal, kind) if r.match.matches(label, domains))
+        rules.extend(r for r in getattr(principal, kind) if any(r.match.matches(label, domains) for label in labels))
     return rules
+
+
+def _parameters(tool: ToolSpec) -> set[str]:
+    import inspect
+
+    try:
+        return set(inspect.signature(tool.method).parameters)
+    except (TypeError, ValueError):
+        return set()
+
+
+def _render_pin(name: str, value: Any, caller: Caller, owner: str) -> Any:
+    if isinstance(value, list):
+        return [_render_pin(name, v, caller, owner) for v in value]
+    if not isinstance(value, str):
+        return value
+    rendered = _render(value, caller)
+    if rendered is None:
+        raise PinError(f"{owner}: pinned argument {name!r} needs a user claim this caller does not have")
+    return rendered
 
 
 def _claims_match(match: Mapping[str, Any], claims: Mapping[str, Any]) -> bool:
