@@ -6,10 +6,10 @@ description: Example CRM pack.
 tools:
   list_deals:
     action: deal:list
-    taint_fields: { finance: [margin] }
+    sensitive_fields: { finance: [margin] }
   get_deal:
     action: deal:read
-    taint_fields: { finance: [margin] }
+    sensitive_fields: { finance: [margin] }
   move_deal: deal:update
 
 roles:

@@ -48,8 +48,8 @@ class ToolSpec:
     source: str
     #: The tool's label; for a templated tool, the label of its first value.
     label: Label
-    taints: tuple[str, ...]
-    taint_fields: Mapping[str, tuple[str, ...]]
+    sensitive: tuple[str, ...]
+    sensitive_fields: Mapping[str, tuple[str, ...]]
     method: Callable[..., Any]  # bound connector method
     description: str
     #: The argument whose value is the label's entity (templated tools only).
@@ -143,8 +143,8 @@ def _tool_spec(source: str, connector: Connector, tool_def: ToolDef, values: tup
         name=f"{source}_{tool_def.name}",
         source=source,
         label=label,
-        taints=tool_def.taints,
-        taint_fields=tool_def.taint_fields,
+        sensitive=tool_def.sensitive,
+        sensitive_fields=tool_def.sensitive_fields,
         method=method,
         description="",
         label_arg=tool_def.label_from,
@@ -190,8 +190,8 @@ def _describe(method: Callable[..., Any], spec: ToolSpec) -> str:
     footer = f"Label: {spec.label_text}."
     if spec.label_arg and not spec.label_fill:
         footer += f" {spec.label_arg}: one of {', '.join(spec.label_values)}."
-    if spec.taints:
-        footer += f" Taints: {', '.join(spec.taints)}."
+    if spec.sensitive:
+        footer += f" Sensitive: {', '.join(spec.sensitive)}."
     return f"{doc}\n\n{footer}".strip()
 
 

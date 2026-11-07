@@ -23,7 +23,7 @@ def test_example_config_is_valid(config_dir, catalog):
     assert set(policy.agents) == {"default", "support-bot"}
     default = policy.agents["default"]
     assert {g.role for g in default.grants} == {"zendesk:responder", "jira:contributor", "wrike:contributor"}
-    assert "pii" in default.tolerations
+    assert "pii" in default.may_see
     assert policy.anonymous.grants == ()  # unattended calls are denied unless a service user exists
     assert policy.service_users["default"].name == "default-service"
     assert {g.role for g in policy.service_users["default"].grants} == {g.role for g in default.grants}
@@ -89,3 +89,13 @@ def test_fingerprint_ignores_dot_paths(config_dir):
     (config_dir / ".git").mkdir()
     (config_dir / ".git" / "x.yaml").write_text("x: 1\n")
     assert all(".." not in str(p) and ".git" not in str(p) for p in config_files(config_dir))
+
+
+def test_renamed_keys_say_what_they_became(config_dir):
+    from myco_mcp.connector import Pack, PackError
+
+    (config_dir / "agents" / "old.yaml").write_text("agent: old\ntolerations: [pii]\n")
+    with pytest.raises(ConfigError, match="'tolerations' was renamed 'may_see'"):
+        load_policy(config_dir, roles={}, sources=[])
+    with pytest.raises(PackError, match="'taint_fields' was renamed 'sensitive_fields'"):
+        Pack.parse({"tools": {"get": {"action": "x:read", "taint_fields": {"pii": ["a"]}}}}, "x")

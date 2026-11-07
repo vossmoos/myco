@@ -108,7 +108,7 @@ async def test_each_key_sees_its_own_tools(server):
         "zendesk_get_article",
         "crm_list_deals",
         "crm_get_deal",
-    }  # zendesk_get_contact is hidden: tainted pii, no toleration
+    }  # zendesk_get_contact is hidden: sensitive pii, no may_see
     deal = reader_tools["crm_get_deal"]
     assert deal.annotations.read_only_hint is True
     assert "Redacted fields: margin." in deal.description

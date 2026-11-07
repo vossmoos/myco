@@ -1,7 +1,7 @@
 """Permissions as YAML in Git: the config folder.
 
     myco-config/
-      agents/<agent>.yaml   one file per agent (roles, deny, tolerations, scope, redact, pin)
+      agents/<agent>.yaml   one file per agent (roles, permissions, deny, may_see, scope, redact, pin)
       users.yaml            SSO claim matching, service users and the built-in ``anonymous`` user
       domains.yaml          optional groups of sources, e.g. support: [zendesk, zendesk]
 
@@ -82,7 +82,8 @@ class Principal:
 class AgentPolicy(Principal):
     owner: str = ""
     description: str = ""
-    tolerations: frozenset[str] = frozenset()
+    #: Kinds of sensitive data the agent may see (pack `sensitive` / `sensitive_fields`).
+    may_see: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -206,9 +207,11 @@ def _load_agent(path: Path, resolver: _RoleResolver) -> AgentPolicy:
     origin = str(path)
     if not isinstance(raw, dict):
         raise ConfigError(f"{origin}: expected a mapping")
+    if "tolerations" in raw:
+        raise ConfigError(f"{origin}: 'tolerations' was renamed 'may_see'")
     _only_keys(
         raw,
-        {"agent", "owner", "description", "roles", "permissions", "deny", "tolerations", "scope", "redact", "pin"},
+        {"agent", "owner", "description", "roles", "permissions", "deny", "may_see", "scope", "redact", "pin"},
         origin,
     )
     name = raw.get("agent")
@@ -217,15 +220,15 @@ def _load_agent(path: Path, resolver: _RoleResolver) -> AgentPolicy:
     if name != path.stem:
         raise ConfigError(f"{origin}: agent {name!r} must live in agents/{name}.yaml")
     principal = _principal(name, raw, resolver, origin)
-    tolerations = _str_list(raw.get("tolerations"), f"{origin}: tolerations")
-    for taint in tolerations:
-        if not NAME_RE.match(taint):
-            raise ConfigError(f"{origin}: invalid toleration {taint!r}")
+    may_see = _str_list(raw.get("may_see"), f"{origin}: may_see")
+    for kind in may_see:
+        if not NAME_RE.match(kind):
+            raise ConfigError(f"{origin}: invalid kind of sensitive data {kind!r} in may_see")
     return AgentPolicy(
         **principal,
         owner=str(raw.get("owner") or ""),
         description=str(raw.get("description") or "").strip(),
-        tolerations=frozenset(tolerations),
+        may_see=frozenset(may_see),
     )
 
 

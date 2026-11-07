@@ -112,7 +112,7 @@ async def test_a_witnessed_read_lands_in_the_agents_memory(server):
     assert body["occurred_at"] == "2026-11-03T09:00:00Z"
     assert body["actor"] == {"agent": "support-bot", "user": "service:bots", "via": "witness:zendesk_get_ticket"}
     assert '"ticket_id": 7' in body["data"] and "charged twice" in body["data"]
-    # exactly what the agent saw: the requester's e-mail was redacted for it (no pii toleration)
+    # exactly what the agent saw: the requester's e-mail was redacted for it (it may not see pii)
     assert "maria@acme.test" not in body["data"] and "[redacted]" in body["data"]
     [entry] = audit(server, "tool.witness")
     assert entry["outcome"] == "ok" and entry["record"] == "zendesk:ticket:7" and entry["agent"] == "support-bot"

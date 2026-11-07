@@ -13,10 +13,10 @@ request; Myco then runs it unchanged. When the vendor API changes, run this skil
 
 Read first, in this repository:
 
-- `README.md` → *Concepts* (sources, packs, labels, taints) and *Example: create a connector*.
+- `README.md` → *Concepts* (sources, packs, labels, sensitive data) and *Example: create a connector*.
 - `src/myco_mcp/connector.py` — the pack format and what Myco validates at startup.
 - One existing pack as the model: `src/myco_mcp/packs/zendesk.py` + `zendesk.yaml`
-  (REST, field taints), or `packs/etchmem.py` + `.yaml` (labels filled in by Myco).
+  (REST, sensitive fields), or `packs/etchmem.py` + `.yaml` (labels filled in by Myco).
 - `tests/test_connectors.py` — how connectors are tested with `respx`.
 
 ## Inputs to ask for (only what is missing)
@@ -89,9 +89,9 @@ tools:
   list_things: thing:list
   get_thing:
     action: thing:read
-    taint_fields:
+    sensitive_fields:
       pii: [owner.email, owner.phone]
-  get_person: { action: person:read, taints: [pii] }
+  get_person: { action: person:read, sensitive: [pii] }
   update_thing: thing:update
 roles:
   reader: [thing:read, thing:list, person:read]
@@ -99,10 +99,10 @@ roles:
 ```
 
 - Exactly one entry per `@tool` method, and nothing else; Myco refuses to start otherwise.
-- **Taints:** mark every reply field holding personal data (names of private persons,
-  e-mails, phones, addresses) under `taint_fields: { pii: [...] }`, prices/margins/salaries
-  under `finance`. A tool whose whole purpose is personal data gets `taints: [pii]`.
-  When unsure, taint: an agent can be given a toleration, an unredacted leak cannot be undone.
+- **Sensitive data:** mark every reply field holding personal data (names of private persons,
+  e-mails, phones, addresses) under `sensitive_fields: { pii: [...] }`, prices/margins/salaries
+  under `finance`. A tool whose whole purpose is personal data gets `sensitive: [pii]`.
+  When unsure, mark it: an agent can be given `may_see`, an unredacted leak cannot be undone.
 - **Record ids:** give every tool that returns ONE record, and every write, a `record:`
   entry naming the record and its change time, e.g.
   `get_ticket: { action: ticket:read, record: { id: "ticket:{id}", time: updated_at } }`.
@@ -133,7 +133,7 @@ roles:
 ### 5. Document and verify
 
 - Add a section under *Example packs* in `README.md` (built-in) or a README next to the
-  plugin: settings, tools with labels, roles, taints.
+  plugin: settings, tools with labels, roles, sensitive data.
 - Run `.venv/bin/pytest` and `.venv/bin/ruff check . && .venv/bin/ruff format --check .`.
 - Start Myco with fake settings (`MYCO_SOURCE__<NAME>__TYPE=<type>`, …) and confirm it boots:
   startup validation is the final check that pack and code agree.
@@ -143,7 +143,7 @@ roles:
 Write the description for the reviewer, who is approving **access**, not just code:
 
 - a table: tool → label → what it can change → who gets it (roles);
-- every taint and why; every field deliberately **not** returned;
+- every sensitive field or tool and why; every field deliberately **not** returned;
 - what was left out of the API and why;
 - whether fixtures came from a real sandbox or from the spec.
 
@@ -158,10 +158,10 @@ an upstream error pattern after a vendor release.
 3. Fix what broke: paths, parameters, renamed fields in the allow-lists, new enum values.
    Keep tool names and labels stable: agents' configs and roles refer to them.
 4. **New fields are not exposed automatically.** List them in the pull request; add one to
-   an allow-list only if a use case needs it, and taint it if it holds personal or financial
+   an allow-list only if a use case needs it, and mark it sensitive if it holds personal or financial
    data.
 5. **Never widen access silently.** Any new tool, new write/`send`/`delete`/`admin`
-   operation, new field returned, removed taint or changed role gets its own line in the PR
+   operation, new field returned, removed sensitive marking or changed role gets its own line in the PR
    under a heading **Access changes**, so the reviewer sees it. If there are none, say
    "Access changes: none".
 6. Update the fixtures, bump `version` in the pack, run the tests and the startup check.
@@ -173,4 +173,4 @@ an upstream error pattern after a vendor release.
 - Put real credentials, personal data or customer content in code, fixtures, tests or the PR.
 - Label a tool with a weaker operation than what it does (an update labelled `read`, an
   e-mail-sending action labelled `create`). A mislabelled tool is a security bug.
-- Remove a taint or add a field to a reply without listing it under **Access changes**.
+- Remove a sensitive marking or add a field to a reply without listing it under **Access changes**.

@@ -7,15 +7,15 @@ description: Issues, comments, workflow transitions and worklogs.
 tools:
   get_issue:
     action: issue:read
-    taint_fields:
+    sensitive_fields:
       pii: [assignee.email, reporter.email]
   search_issues:
     action: issue:list
-    taint_fields:
+    sensitive_fields:
       pii: [assignee.email, reporter.email]
   list_comments:
     action: comment:list
-    taint_fields:
+    sensitive_fields:
       pii: [author.email]
   list_transitions: transition:list
   create_issue: issue:create

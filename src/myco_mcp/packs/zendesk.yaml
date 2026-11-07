@@ -13,17 +13,17 @@ tools:
   get_ticket:
     action: ticket:read
     record: { id: "ticket:{id}", time: updated_at }
-    taint_fields:
+    sensitive_fields:
       pii: [requester.name, requester.email, requester.phone, requester.mobile, cc_emails]
   list_conversations:
     action: conversation:list
-    taint_fields:
+    sensitive_fields:
       pii: [from_email, to_emails, cc_emails]
   create_ticket: { action: ticket:create, record: { id: "ticket:{id}", time: updated_at } }
   update_ticket: { action: ticket:update, record: { id: "ticket:{id}", time: updated_at } }
   add_note: { action: note:create, record: { id: "ticket:{ticket_id}", time: created_at } }
   reply_to_ticket: { action: reply:send, record: { id: "ticket:{ticket_id}", time: created_at } }
-  get_contact: { action: contact:read, taints: [pii], record: { id: "contact:{id}", time: created_at } }
+  get_contact: { action: contact:read, sensitive: [pii], record: { id: "contact:{id}", time: created_at } }
   get_company: { action: company:read, record: { id: "company:{id}", time: updated_at } }
   get_article: { action: article:read, record: { id: "article:{id}", time: updated_at } }
 

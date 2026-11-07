@@ -65,13 +65,13 @@ def test_agent_deny_wins_and_unmatched_user_gets_nothing(setup):
     assert check(catalog, stranger, "jira_get_issue").rule == "user:(no match):no-role"
 
 
-def test_taints_need_toleration(setup):
+def test_sensitive_tools_need_may_see(setup):
     catalog, caller = setup
     customer = caller("PORTAL", {"sub": "3", "groups": "customers", "org": "42"})
     assert check(catalog, customer, "zendesk_get_ticket").allowed
-    assert check(catalog, customer, "zendesk_get_contact").rule == "taint:pii"
+    assert check(catalog, customer, "zendesk_get_contact").rule == "sensitive:pii"
     staff = caller("DEFAULT", {"sub": "1", "groups": ["staff"]})
-    assert check(catalog, staff, "zendesk_get_contact").allowed  # default tolerates pii
+    assert check(catalog, staff, "zendesk_get_contact").allowed  # default may see pii
 
 
 def test_unknown_agent_and_rejected_token(setup):
@@ -110,9 +110,7 @@ def test_scope_and_redaction(setup):
 def test_missing_claim_means_out_of_scope(setup):
     catalog, caller = setup
     customer, policy = caller("PORTAL", {"sub": "3", "groups": ["customers"]})  # no org claim
-    shaped = shape_reply(
-        customer, catalog.tools["zendesk_list_tickets"], [{"id": 1, "company_id": 42}], policy.domains
-    )
+    shaped = shape_reply(customer, catalog.tools["zendesk_list_tickets"], [{"id": 1, "company_id": 42}], policy.domains)
     assert shaped == []
 
 

@@ -3,9 +3,9 @@
 1. Identify the agent (Myco key) and its user (forwarded SSO token, else the agent's service
    user, else ``anonymous``).
 2. Fix pinned arguments, then map the tool to its action label(s) — one per value of a
-   templated argument such as ``{scope}``.
-3. Check roles, taints and denies, for every label.
-4. Scope the reply by row, withhold tainted rows and redact fields.
+   templated argument.
+3. Check roles, permissions, denies and sensitive data, for every label.
+4. Scope the reply by row and redact fields; witness it into memory if configured.
 """
 
 from __future__ import annotations

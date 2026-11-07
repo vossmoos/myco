@@ -14,5 +14,5 @@ deny:
   - "*:*:delete"
   - "*:*:send"
 
-# No pii toleration: contacts are hidden and personal fields are redacted.
-tolerations: []
+# May not see pii: contacts are hidden and personal fields are redacted.
+may_see: []

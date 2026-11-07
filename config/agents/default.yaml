@@ -11,6 +11,6 @@ roles:
   - jira:contributor      # read, create/update issues, comments, transitions, worklogs
   - wrike:contributor     # read, create/update tasks, comments
 
-# Without this toleration, zendesk_get_contact is hidden and requester e-mails,
+# Without may_see: [pii], zendesk_get_contact is hidden and requester e-mails,
 # phone numbers and similar fields are redacted from replies.
-tolerations: [pii]
+may_see: [pii]

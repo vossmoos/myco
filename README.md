@@ -8,7 +8,7 @@ Myco gives AI agents cloud-style IAM for the SaaS apps your cloud IAM can't reac
 - **One label per tool:** `source:entity:operation`, for example `zendesk:ticket:read`.
 - **Roles per source**, such as `zendesk:reader`, combined per agent. Explicit deny always wins.
 - **Users:** effective access is the agent's roles ∩ the user's roles. Without a user token, an agent runs as its named service user, or as the built-in `anonymous` user, which has no access by default.
-- **Data scoping:** replies are filtered by row (`company_id == {user.org}`) and by field (taints such as `pii` on declared fields, plus redaction rules).
+- **Data scoping:** replies are filtered by row (`company_id == {user.org}`) and by field (fields a pack marks as sensitive, e.g. `pii`, plus redaction rules).
 - **Labels from arguments:** a tool can take its label from an argument, and Myco can fill that argument itself: company memory is labelled by who wrote it (`memory:<writer>:read`), so each agent reads exactly the writers it is granted.
 - **Pinned arguments:** an agent file can fix arguments (`scope: sales`); the agent never sees them and cannot change them.
 - **Witnessing:** a connector instance can record in company memory what selected tools showed an agent (`MYCO_SOURCE__<NAME>__WITNESS`).
@@ -21,7 +21,7 @@ Built on [FastMCP](https://github.com/jlowin/fastmcp). License: MIT.
 Agent ──(Myco key, optional user SSO token)──▶ Myco /mcp ──(vendor credentials)──▶ your SaaS apps
                                                1. identify agent + user
                                                2. map tool → label
-                                               3. check roles, taints, denies
+                                               3. check roles, denies, sensitive data
                                                4. scope rows, redact fields, audit
 ```
 
@@ -157,9 +157,9 @@ A **pack** is a connector (`<type>.py`) plus its label file (`<type>.yaml`). It 
 tools:
   get_ticket:
     action: ticket:read
-    taint_fields: { pii: [requester.email, requester.phone] }
+    sensitive_fields: { pii: [requester.email, requester.phone] }
   create_ticket: ticket:create
-  get_contact: { action: contact:read, taints: [pii] }
+  get_contact: { action: contact:read, sensitive: [pii] }
 roles:
   reader: [ticket:read, ticket:list, contact:read]
   contributor: [ticket:read, ticket:list, contact:read, ticket:write]
@@ -201,7 +201,7 @@ owner: anna@acme.com
 roles: [zendesk:reader, jira:reader]
 permissions: ["memory:support_bot:*"]   # label patterns granted directly, next to roles
 deny: ["*:*:delete", "*:*:send"]
-tolerations: []                 # e.g. [pii]
+may_see: []                     # kinds of sensitive data, e.g. [pii]
 scope:                          # keep only rows whose fields match (applies to replies)
   - match: "zendesk:ticket:*"
     where: { company_id: "{user.org}" }
@@ -288,10 +288,14 @@ from that tool's schema in `tools/list`. Values may use `{user.<claim>}` and
 are allowed in agent files and `users.yaml` entries; a user entry's pin wins over the
 agent's. Use them to confine an agent's writes to one scope or project.
 
-### Taints, scope and redaction
+### Sensitive data, scope and redaction
 
-- **Tool taints** (`taints: [pii]` in the pack) hide a tool unless the agent lists a matching toleration.
-- **Field taints** (`taint_fields`) redact those reply fields unless the agent tolerates the taint.
+- **Sensitive fields** (`sensitive_fields: { pii: [requester.email] }` in the pack) are replaced
+  with `[redacted]` unless the agent's file lists that kind under `may_see`.
+- **Sensitive tools** (`sensitive: [pii]` in the pack, for a tool whose whole purpose is that
+  data) are hidden unless the agent lists the kind under `may_see`.
+- Both are declared once per connector by the person who writes it, per named field: exact,
+  never guessed from content.
 - **`scope`** filters list replies by row; a single record outside the scope is refused. Placeholders: `{user.<claim>}` and `{agent.name}`. A missing claim means "out of scope".
 - **`redact`** replaces extra fields with `[redacted]` for that agent or user.
 
@@ -341,7 +345,7 @@ Every call writes one JSON line to stdout, and also to `MYCO_AUDIT_FILE` if set:
 {"ts":"2026-10-11T16:23:22.264+00:00","audit":"tool.call","decision":"deny","reason":"no role of agent support-bot grants jira:issue:create","agent":"support-bot","user":"anonymous","tool":"jira_create_issue","label":"jira:issue:create","rule":"agent:no-role","args":["summary"],"config":"3bcd9bd3777e"}
 ```
 
-Arguments are logged by name only, never by value. Rules you will see: `allow:<agent role>&<user>/<user role>`, `deny:agent:<pattern>`, `deny:user:<entry>:<pattern>`, `agent:no-role`, `user:<entry>:no-role`, `taint:<taint>`, `scope:outside`, `agent:no-file`, `user:token-rejected`.
+Arguments are logged by name only, never by value. Rules you will see: `allow:<agent role>&<user>/<user role>`, `deny:agent:<pattern>`, `deny:user:<entry>:<pattern>`, `agent:no-role`, `user:<entry>:no-role`, `sensitive:<kind>`, `scope:outside`, `agent:no-file`, `user:token-rejected`.
 
 ## Example: create an agent with permissions
 
@@ -357,7 +361,7 @@ roles: [jira:contributor]
 deny:
   - "jira:issue:create"     # contributor could create; this agent may not
   - "*:*:delete"
-# no tolerations: assignee/reporter e-mails are redacted
+# no may_see: assignee/reporter e-mails are redacted
 ```
 
 **2. Give it a key** in `.env` (or in the cluster Secret):
@@ -435,8 +439,8 @@ class AcmeCrm(Connector):
 pack: acme_crm
 version: "1"
 tools:
-  list_deals: { action: deal:list, taint_fields: { finance: [margin] } }
-  get_deal:   { action: deal:read, taint_fields: { finance: [margin] } }
+  list_deals: { action: deal:list, sensitive_fields: { finance: [margin] } }
+  get_deal:   { action: deal:read, sensitive_fields: { finance: [margin] } }
   move_deal: deal:update
 roles:
   reader: [deal:read, deal:list]
@@ -459,7 +463,7 @@ docker run --rm -p 8080:8080 --env-file .env \
   myco
 ```
 
-The source `crm` now publishes `crm_list_deals` (`crm:deal:list`), `crm_get_deal` and `crm_move_deal`, and the roles `crm:reader` and `crm:sales`. Agents without a `finance` toleration get `"margin": "[redacted]"`.
+The source `crm` now publishes `crm_list_deals` (`crm:deal:list`), `crm_get_deal` and `crm_move_deal`, and the roles `crm:reader` and `crm:sales`. Agents without `may_see: [finance]` get `"margin": "[redacted]"`.
 
 Rules for a good pack:
 
@@ -485,7 +489,7 @@ Settings: `DOMAIN` (e.g. `acme.zendesk.com`), `API_KEY` (the plain API key; Myco
 | `search_tickets` | `ticket:list` | status, priority, tag, created-after (query is built by Myco) |
 | `get_ticket` | `ticket:read` | requester name/e-mail/phone and cc are `pii` fields |
 | `list_conversations` | `conversation:list` | e-mail fields are `pii` |
-| `get_contact` | `contact:read` | tool tainted `pii` |
+| `get_contact` | `contact:read` | sensitive tool (`pii`) |
 | `get_company` | `company:read` | |
 | `get_article` | `article:read` | optional language, e.g. `de` |
 | `create_ticket` | `ticket:create` | |
@@ -689,7 +693,7 @@ Layout:
 ```
 src/myco_mcp/
   server.py      FastMCP app, per-call gate, tools/list filtering, hot reload
-  policy.py      decisions (roles ∩ user, deny, taints) and reply shaping
+  policy.py      decisions (roles ∩ user, deny, sensitive data) and reply shaping
   config.py      config folder loading and validation
   catalog.py     sources → tools, labels and roles
   connector.py   Connector base class, @tool, pack format

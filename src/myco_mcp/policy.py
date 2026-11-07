@@ -1,10 +1,10 @@
 """Deterministic access decisions and reply shaping. No LLM, no network.
 
 Effective access = agent roles ∩ user roles, minus explicit denies (which always win),
-minus tools whose taints the agent does not tolerate. Allowed replies are then narrowed
-to the caller's data scope (rows), stripped of rows whose taints the agent does not
-tolerate, and redacted (fields). A tool whose label depends on an argument (``{scope}``)
-is decided once per label the call carries; every one must be allowed.
+minus tools holding a kind of sensitive data the agent may not see (`may_see`). Allowed
+replies are then narrowed to the caller's data scope (rows) and redacted (fields the pack
+marks sensitive, plus `redact` rules). A tool whose label depends on an argument is
+decided once per label the call carries; every one must be allowed.
 """
 
 from __future__ import annotations
@@ -120,9 +120,9 @@ def decide(
             f"user:{caller.user_entry_names}:no-role",
             f"no role of user {caller.user_entry_names} grants {label}",
         )
-    for taint in tool.taints:
-        if taint not in agent.tolerations:
-            return Decision(False, f"taint:{taint}", f"tool is tainted {taint!r}; agent has no toleration")
+    for kind in tool.sensitive:
+        if kind not in agent.may_see:
+            return Decision(False, f"sensitive:{kind}", f"tool holds {kind!r} data; agent {agent.name} may not see it")
     return Decision(True, f"allow:{agent_grant.role}&{user_entry.name}/{user_grant.role}")
 
 
@@ -207,8 +207,8 @@ def redaction_paths(
     domains: Mapping[str, frozenset[str]],
     labels: Iterable[Label] | None = None,
 ) -> list[str]:
-    tolerations = caller.agent.tolerations if caller.agent else frozenset()
-    paths = [p for taint, ps in tool.taint_fields.items() if taint not in tolerations for p in ps]
+    may_see = caller.agent.may_see if caller.agent else frozenset()
+    paths = [p for kind, ps in tool.sensitive_fields.items() if kind not in may_see for p in ps]
     labels = tuple(labels) if labels is not None else (tool.label,)
     for rule in _rules_any(caller, "redact", labels, domains):
         paths.extend(rule.fields)

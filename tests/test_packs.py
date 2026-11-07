@@ -18,7 +18,7 @@ def test_catalog_prefixes_tools_labels_and_roles(env):
     assert str(spec.label) == "zendesk:ticket:read"
     assert "Label: zendesk:ticket:read." in spec.description
     assert "zendesk:reader" in catalog.roles and "jira:contributor" in catalog.roles
-    assert catalog.tools["zendesk_get_contact"].taints == ("pii",)
+    assert catalog.tools["zendesk_get_contact"].sensitive == ("pii",)
 
 
 def test_second_source_of_same_type_is_independent(env):

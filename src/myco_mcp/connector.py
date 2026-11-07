@@ -3,7 +3,7 @@
 A connector is two files with the same name:
 
 * ``acme.py``   — a :class:`Connector` subclass whose ``@tool`` methods call the vendor API.
-* ``acme.yaml`` — the pack: one label per tool, optional taints, and the roles.
+* ``acme.yaml`` — the pack: one label per tool, optional sensitive data, and the roles.
 
 Myco refuses to start when the two disagree: every ``@tool`` method needs a label in the
 pack and every pack tool needs a method, so no tool can ever be published unlabelled.
@@ -113,9 +113,12 @@ def _dig(obj: Any, path: str) -> Any:
 class ToolDef:
     name: str
     action: str  # "entity:operation", or "{argument}:operation"
-    taints: tuple[str, ...] = ()
-    #: taint -> dot paths in the reply that carry it, e.g. {"pii": ("requester.email",)}
-    taint_fields: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    #: Kinds of sensitive data the whole tool is about, e.g. ("pii",): hidden from agents
+    #: whose file does not list them under `may_see`.
+    sensitive: tuple[str, ...] = ()
+    #: kind -> dot paths in the reply holding it, e.g. {"pii": ("requester.email",)}:
+    #: redacted for agents that may not see that kind.
+    sensitive_fields: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     #: The argument whose value is the label's entity, for ``{argument}:operation`` actions.
     label_from: str | None = None
     #: How to name the record a reply is about; only tools with one can be witnessed.
@@ -235,7 +238,10 @@ def _parse_tool(name: Any, spec: Any, origin: str) -> ToolDef:
         spec = {"action": spec}
     if not isinstance(spec, dict):
         raise PackError(f"{origin}: tool {name!r} must be 'entity:operation' or a mapping")
-    _only_keys(spec, {"action", "taints", "taint_fields", "fill", "record"}, f"{origin}: tool {name!r}")
+    for old, new in (("taints", "sensitive"), ("taint_fields", "sensitive_fields")):
+        if old in spec:
+            raise PackError(f"{origin}: tool {name!r}: {old!r} was renamed {new!r}")
+    _only_keys(spec, {"action", "sensitive", "sensitive_fields", "fill", "record"}, f"{origin}: tool {name!r}")
     action = str(spec.get("action", ""))
     entity, _, _ = action.partition(":")
     template = TEMPLATE_RE.fullmatch(entity)
@@ -246,22 +252,22 @@ def _parse_tool(name: Any, spec: Any, origin: str) -> ToolDef:
             raise LabelError(f"action {action!r} must have the form entity:operation")
     except LabelError as exc:
         raise PackError(f"{origin}: tool {name!r}: {exc}") from exc
-    taints = tuple(str(t) for t in spec.get("taints") or ())
-    taint_fields_raw = spec.get("taint_fields") or {}
-    if not isinstance(taint_fields_raw, dict):
-        raise PackError(f"{origin}: tool {name!r}: taint_fields must map taint -> [paths]")
-    taint_fields = {str(t): tuple(str(p) for p in paths) for t, paths in taint_fields_raw.items()}
-    for taint in (*taints, *taint_fields):
-        if not NAME_RE.match(taint):
-            raise PackError(f"{origin}: tool {name!r}: invalid taint {taint!r}")
+    sensitive = tuple(str(t) for t in spec.get("sensitive") or ())
+    fields_raw = spec.get("sensitive_fields") or {}
+    if not isinstance(fields_raw, dict):
+        raise PackError(f"{origin}: tool {name!r}: sensitive_fields must map kind -> [paths]")
+    sensitive_fields = {str(t): tuple(str(p) for p in paths) for t, paths in fields_raw.items()}
+    for kind in (*sensitive, *sensitive_fields):
+        if not NAME_RE.match(kind):
+            raise PackError(f"{origin}: tool {name!r}: invalid kind of sensitive data {kind!r}")
     fill = spec.get("fill")
     if fill is not None and (fill not in FILL_MODES or label_from is None):
         raise PackError(f"{origin}: tool {name!r}: fill must be one of {', '.join(FILL_MODES)}, on a templated action")
     return ToolDef(
         name=name,
         action=action,
-        taints=taints,
-        taint_fields=taint_fields,
+        sensitive=sensitive,
+        sensitive_fields=sensitive_fields,
         label_from=label_from,
         label_fill=fill,
         record=_parse_record(spec.get("record"), f"{origin}: tool {name!r}"),
