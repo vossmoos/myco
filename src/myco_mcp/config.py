@@ -1,7 +1,7 @@
 """Permissions as YAML in Git: the config folder.
 
     myco-config/
-      agents/<agent>.yaml   one file per agent (roles, deny, tolerations, scope, redact)
+      agents/<agent>.yaml   one file per agent (roles, deny, tolerations, scope, redact, pin)
       users.yaml            SSO claim matching, service users and the built-in ``anonymous`` user
       domains.yaml          optional groups of sources, e.g. support: [zendesk, zendesk]
 
@@ -55,6 +55,17 @@ class RedactRule:
 
 
 @dataclass(frozen=True)
+class PinRule:
+    """Arguments fixed for every matching call, whatever the agent sends.
+
+    Values may use ``{user.<claim>}`` and ``{agent.name}``. A pinned argument is
+    removed from the tool's schema in ``tools/list``, so the agent never sees it."""
+
+    match: LabelPattern
+    args: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
 class Principal:
     """Shared shape of an agent file and a users.yaml entry."""
 
@@ -64,6 +75,7 @@ class Principal:
     deny: tuple[LabelPattern, ...] = ()
     scope: tuple[ScopeRule, ...] = ()
     redact: tuple[RedactRule, ...] = ()
+    pin: tuple[PinRule, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -194,7 +206,11 @@ def _load_agent(path: Path, resolver: _RoleResolver) -> AgentPolicy:
     origin = str(path)
     if not isinstance(raw, dict):
         raise ConfigError(f"{origin}: expected a mapping")
-    _only_keys(raw, {"agent", "owner", "description", "roles", "deny", "tolerations", "scope", "redact"}, origin)
+    _only_keys(
+        raw,
+        {"agent", "owner", "description", "roles", "permissions", "deny", "tolerations", "scope", "redact", "pin"},
+        origin,
+    )
     name = raw.get("agent")
     if not isinstance(name, str) or not AGENT_NAME_RE.match(name):
         raise ConfigError(f"{origin}: 'agent' must be a lowercase name like support-bot")
@@ -235,7 +251,7 @@ def _load_users(
             raise ConfigError(f"{origin}: invalid user entry name {name!r}")
         if not isinstance(spec, dict):
             raise ConfigError(f"{where}: expected a mapping")
-        _only_keys(spec, {"match", "service_for", "roles", "deny", "scope", "redact"}, where)
+        _only_keys(spec, {"match", "service_for", "roles", "permissions", "deny", "scope", "redact", "pin"}, where)
         principal = _principal(name, spec, resolver, where)
         match = spec.get("match")
         service_for = _str_list(spec.get("service_for"), f"{where}: service_for")
@@ -272,11 +288,42 @@ def _principal(name: str, raw: Mapping[str, Any], resolver: _RoleResolver, origi
     return {
         "name": name,
         "roles": roles,
-        "grants": tuple(resolver.resolve(roles, origin)),
+        "grants": (
+            *resolver.resolve(roles, origin),
+            *(
+                Grant(role="permissions", pattern=p)
+                for p in _patterns(raw.get("permissions"), f"{origin}: permissions")
+            ),
+        ),
         "deny": tuple(_patterns(raw.get("deny"), f"{origin}: deny")),
         "scope": tuple(_scope_rules(raw.get("scope"), origin)),
         "redact": tuple(_redact_rules(raw.get("redact"), origin)),
+        "pin": tuple(_pin_rules(raw.get("pin"), origin)),
     }
+
+
+def _pin_rules(raw: Any, origin: str) -> Iterable[PinRule]:
+    for i, item in enumerate(_list(raw, f"{origin}: pin")):
+        where = f"{origin}: pin[{i}]"
+        if not isinstance(item, dict):
+            raise ConfigError(f"{where}: expected {{match, args}}")
+        _only_keys(item, {"match", "args"}, where)
+        args = item.get("args")
+        if not isinstance(args, dict) or not args:
+            raise ConfigError(f"{where}: 'args' must map argument names to values")
+        for name, value in args.items():
+            if not isinstance(name, str) or not NAME_RE.match(name):
+                raise ConfigError(f"{where}: invalid argument name {name!r}")
+            items = value if isinstance(value, list) else [value]
+            for v in items:
+                if isinstance(v, (dict, list)) or v is None:
+                    raise ConfigError(f"{where}: {name!r} must be a value or a list of values")
+                for placeholder in PLACEHOLDER_RE.findall(str(v)):
+                    if not VALID_PLACEHOLDER_RE.match(placeholder):
+                        raise ConfigError(
+                            f"{where}: unknown placeholder {{{placeholder}}} (use {{user.<claim>}} or {{agent.name}})"
+                        )
+        yield PinRule(match=_pattern(item.get("match"), where), args=dict(args))
 
 
 def _scope_rules(raw: Any, origin: str) -> Iterable[ScopeRule]:

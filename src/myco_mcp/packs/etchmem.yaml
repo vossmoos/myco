@@ -1,0 +1,24 @@
+# etchmem pack: company memory, permissioned by who wrote it.
+#
+# Labels are memory:<writer>:<operation>. A source named "memory" with
+# WRITERS=mossy,hubspot,zendesk publishes memory_recall labelled memory:mossy:read,
+# memory:hubspot:read, memory:zendesk:read, and memory_remember labelled with the calling
+# agent (memory:<agent>:create). Grant them in an agent's `permissions:`, e.g.
+#   permissions: ["memory:mossy:*", "memory:zendesk:read"]
+# Scopes are not permissions: they are a free topic filter.
+pack: etchmem
+version: "2"
+description: Company memory (etchmem) — consolidated beliefs with provenance, readable per writer.
+
+tools:
+  recall: { action: "{writers}:read", fill: allowed }
+  know: { action: "{writers}:read", fill: allowed }
+  list_beliefs: { action: "{writers}:read", fill: allowed }
+  history: { action: "{writers}:read", fill: allowed }
+  dossier: { action: "{writers}:read", fill: allowed }
+  remember: { action: "{writer}:create", fill: agent }
+  forget: subject:delete
+
+roles:
+  reader: ["*:read"]
+  eraser: [subject:delete]
